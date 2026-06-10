@@ -120,3 +120,39 @@ export async function sendDeadlineAlerts() {
     }).catch(err => console.error('Deadline alert error:', err.message));
   }
 }
+
+export async function sendVerificationEmail(email: string, token: string) {
+  const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/verify?token=${token}`;
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
+    to: email,
+    subject: '【補助金ナビ】メールアドレスの確認',
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#1e3a5f">メールアドレスの確認</h2>
+        <p>補助金ナビへのご登録ありがとうございます。以下のボタンをクリックしてメール認証を完了してください。</p>
+        <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">メールアドレスを確認する</a>
+        <p style="color:#666;font-size:12px">このメールに心当たりがない場合は無視してください。</p>
+      </div>
+    `,
+  }).catch(err => console.error('Mail error:', err.message));
+}
+
+export async function sendPasswordResetEmail(email: string, token: string) {
+  const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
+    to: email,
+    subject: '【補助金ナビ】パスワードリセット',
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#1e3a5f">パスワードリセット</h2>
+        <p>パスワードリセットのリクエストを受け付けました。以下のボタンをクリックして新しいパスワードを設定してください。</p>
+        <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">パスワードをリセットする</a>
+        <p style="color:#666;font-size:12px">このリンクは1時間で無効になります。このメールに心当たりがない場合は無視してください。</p>
+      </div>
+    `,
+  }).catch(err => console.error('Mail error:', err.message));
+}

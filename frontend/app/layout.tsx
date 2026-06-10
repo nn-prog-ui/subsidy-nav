@@ -1,10 +1,35 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Link from 'next/link';
+import NavAuthLinks from './NavAuthLinks';
+
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
 
 export const metadata: Metadata = {
-  title: '補助金ナビ | 日本全国の補助金・助成金情報',
-  description: '国・都道府県・市区町村の補助金・助成金を一元検索。あなたの事業に最適な支援制度を見つけよう。',
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: '補助金ナビ | 日本全国の補助金・助成金情報',
+    template: '%s | 補助金ナビ',
+  },
+  description: '国・都道府県・市区町村の補助金・助成金を一元検索。IT導入・設備投資・創業支援・雇用促進など全カテゴリ対応。あなたの事業に最適な支援制度を見つけよう。',
+  keywords: ['補助金', '助成金', '中小企業', 'IT導入補助金', 'ものづくり補助金', '創業支援', '雇用助成金', '日本', '検索'],
+  authors: [{ name: '補助金ナビ' }],
+  creator: '補助金ナビ',
+  openGraph: {
+    type: 'website',
+    locale: 'ja_JP',
+    url: BASE_URL,
+    siteName: '補助金ナビ',
+    title: '補助金ナビ | 日本全国の補助金・助成金情報',
+    description: '国・都道府県・市区町村の補助金・助成金を一元検索。あなたの事業に最適な支援制度を見つけよう。',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '補助金ナビ | 日本全国の補助金・助成金情報',
+    description: '国・都道府県・市区町村の補助金・助成金を一元検索。',
+  },
+  robots: { index: true, follow: true },
+  alternates: { canonical: BASE_URL },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/alerts" className="hover:text-orange-300 transition-colors">アラート登録</Link>
               <Link href="/templates" className="hover:text-orange-300 transition-colors">テンプレート</Link>
               <Link href="/consulting" className="bg-accent text-white px-4 py-1.5 rounded-full hover:bg-orange-600 transition-colors">無料相談</Link>
+              <NavAuthLinks />
             </div>
             <div className="md:hidden">
               <Link href="/subsidies" className="text-sm bg-accent px-3 py-1.5 rounded-full">補助金を探す</Link>

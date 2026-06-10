@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import FavoriteButton from './FavoriteButton';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
 
 const LEVEL_COLORS: Record<string, string> = {
   '国': 'bg-red-100 text-red-700',
@@ -14,6 +17,24 @@ interface SubsidyDetail {
   prefecture: string; level: string; maxAmount: number | null; subsidyRate: string | null;
   applicationStart: string | null; applicationEnd: string | null; applicationUrl: string | null;
   requirements: string | null; notes: string | null; municipalityName: string | null; status: string;
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const result = await getSubsidy(id);
+  if (!result) return { title: '補助金が見つかりません' };
+  const s = result.data;
+  const desc = `${s.prefecture}・${s.level}の補助金。対象: ${s.targetType}。${s.maxAmount ? `上限¥${Number(s.maxAmount).toLocaleString()}。` : ''}${s.description.slice(0, 100)}`;
+  return {
+    title: s.title,
+    description: desc,
+    openGraph: {
+      title: `${s.title} | 補助金ナビ`,
+      description: desc,
+      url: `${BASE_URL}/subsidies/${s.id}`,
+    },
+    alternates: { canonical: `${BASE_URL}/subsidies/${s.id}` },
+  };
 }
 
 async function getSubsidy(id: string): Promise<{ data: SubsidyDetail; related: SubsidyDetail[] } | null> {
@@ -93,6 +114,7 @@ export default async function SubsidyDetailPage({ params }: { params: Promise<{ 
           <a href={`${API}/api/subsidies/${subsidy.id}/pdf`} target="_blank" rel="noopener noreferrer"
             className="btn-outline text-center">📄 PDF でダウンロード</a>
           <Link href="/matching" className="btn-outline text-center">🎯 診断で類似を探す</Link>
+          <FavoriteButton subsidyId={subsidy.id} />
         </div>
       </div>
 

@@ -106,3 +106,30 @@ model ScrapeLog {
   errorMessage   String?
   createdAt      DateTime @default(now())
 }
+
+model User {
+  id               String     @id @default(cuid())
+  email            String     @unique
+  passwordHash     String?
+  name             String?
+  emailVerified    Boolean    @default(false)
+  verifyToken      String?    @unique
+  resetToken       String?    @unique
+  resetTokenExpiry DateTime?
+  provider         String     @default("email")
+  favorites        Favorite[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  subsidyId String
+  note      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subsidyId])
+  @@index([userId])
+}
