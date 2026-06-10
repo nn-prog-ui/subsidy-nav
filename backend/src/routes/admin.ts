@@ -43,4 +43,65 @@ router.patch('/consulting/:id', requireAdmin, async (req: Request, res: Response
   res.json({ data });
 });
 
+// Subsidy CRUD
+router.get('/subsidies', requireAdmin, async (req: Request, res: Response) => {
+  const { page = '1', limit = '20', status } = req.query as Record<string, string>;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const where = status ? { status } : {};
+  const [total, data] = await Promise.all([
+    prisma.subsidy.count({ where }),
+    prisma.subsidy.findMany({ where, skip, take: parseInt(limit), orderBy: { createdAt: 'desc' } }),
+  ]);
+  res.json({ data, meta: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) } });
+});
+
+router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
+  const { title, description, category, targetType, level, prefecture, municipalityCode, municipalityName,
+    maxAmount, subsidyRate, applicationStart, applicationEnd, status, applicationUrl, requirements, notes } = req.body;
+  if (!title || !description || !category || !targetType || !level || !prefecture) {
+    return res.status(400).json({ error: 'title, description, category, targetType, level, prefecture required' });
+  }
+  const data = await prisma.subsidy.create({
+    data: {
+      title, description, category, targetType, level, prefecture,
+      municipalityCode: municipalityCode || null,
+      municipalityName: municipalityName || null,
+      maxAmount: maxAmount ? BigInt(maxAmount) : null,
+      subsidyRate: subsidyRate || null,
+      applicationStart: applicationStart ? new Date(applicationStart) : null,
+      applicationEnd: applicationEnd ? new Date(applicationEnd) : null,
+      status: status || 'active',
+      applicationUrl: applicationUrl || null,
+      requirements: requirements || null,
+      notes: notes || null,
+    },
+  });
+  res.status(201).json({ data });
+});
+
+router.patch('/subsidies/:id', requireAdmin, async (req: Request, res: Response) => {
+  const { maxAmount, applicationStart, applicationEnd, ...rest } = req.body;
+  const data = await prisma.subsidy.update({
+    where: { id: req.params.id },
+    data: {
+      ...rest,
+      ...(maxAmount !== undefined ? { maxAmount: maxAmount ? BigInt(maxAmount) : null } : {}),
+      ...(applicationStart !== undefined ? { applicationStart: applicationStart ? new Date(applicationStart) : null } : {}),
+      ...(applicationEnd !== undefined ? { applicationEnd: applicationEnd ? new Date(applicationEnd) : null } : {}),
+    },
+  });
+  res.json({ data });
+});
+
+router.delete('/subsidies/:id', requireAdmin, async (req: Request, res: Response) => {
+  await prisma.subsidy.delete({ where: { id: req.params.id } });
+  res.json({ message: '削除しました' });
+});
+
+// Alerts management
+router.get('/alerts', requireAdmin, async (_req: Request, res: Response) => {
+  const data = await prisma.alert.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  res.json({ data });
+});
+
 export default router;

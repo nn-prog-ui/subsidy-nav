@@ -1,34 +1,53 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-interface Stats { subsidies: number; alerts: number; consulting: number; recentScrapes: any[]; }
+interface Stats { subsidies: number; alerts: number; consulting: number; recentScrapes: ScrapeLog[]; }
+interface ScrapeLog { id: string; targetName: string; status: string; subsidiesFound: number; createdAt: string; }
 interface ConsultingItem { id: string; name: string; email: string; company: string | null; prefecture: string | null; message: string; status: string; createdAt: string; }
+interface SubsidyItem { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; createdAt: string; }
+interface AlertItem { id: string; email: string; prefectures: string[]; categories: string[]; verified: boolean; active: boolean; createdAt: string; }
+
+const CATEGORIES = ['IT・デジタル','設備投資','創業支援','雇用促進','環境・エネルギー','販路拡大','農業・林業','事業再構築','経営支援','地方創生','海外展開','伝統産業','各種補助金'];
+const PREFECTURES = ['全国','北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+
+type Tab = 'stats' | 'subsidies' | 'consulting' | 'alerts' | 'scrape';
 
 export default function AdminPage() {
   const [token, setToken] = useState('');
   const [loginForm, setLoginForm] = useState({ email: 'admin@subsidy-nav.jp', password: '' });
   const [stats, setStats] = useState<Stats | null>(null);
   const [consulting, setConsulting] = useState<ConsultingItem[]>([]);
-  const [tab, setTab] = useState<'stats'|'consulting'|'scrape'>('stats');
+  const [subsidies, setSubsidies] = useState<SubsidyItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [tab, setTab] = useState<Tab>('stats');
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
+  const [showAddSubsidy, setShowAddSubsidy] = useState(false);
+  const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '' });
+
+  const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
+
+  const fetchData = useCallback(async (t: string) => {
+    const h = { Authorization: `Bearer ${t}` };
+    const [s, c, sub, al] = await Promise.allSettled([
+      fetch(`${API}/api/admin/stats`, { headers: h }).then(r => r.json()),
+      fetch(`${API}/api/admin/consulting`, { headers: h }).then(r => r.json()),
+      fetch(`${API}/api/admin/subsidies?limit=50`, { headers: h }).then(r => r.json()),
+      fetch(`${API}/api/admin/alerts`, { headers: h }).then(r => r.json()),
+    ]);
+    if (s.status === 'fulfilled') setStats(s.value.data);
+    if (c.status === 'fulfilled') setConsulting(c.value.data || []);
+    if (sub.status === 'fulfilled') setSubsidies(sub.value.data || []);
+    if (al.status === 'fulfilled') setAlerts(al.value.data || []);
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('admin_token');
     if (saved) { setToken(saved); fetchData(saved); }
-  }, []);
-
-  const fetchData = async (t: string) => {
-    const headers = { Authorization: `Bearer ${t}` };
-    const [statsRes, consultRes] = await Promise.all([
-      fetch(`${API}/api/admin/stats`, { headers }),
-      fetch(`${API}/api/admin/consulting`, { headers }),
-    ]);
-    if (statsRes.ok) setStats((await statsRes.json()).data);
-    if (consultRes.ok) setConsulting((await consultRes.json()).data);
-  };
+  }, [fetchData]);
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,24 +63,49 @@ export default function AdminPage() {
   };
 
   const triggerScrape = async () => {
-    const res = await fetch(`${API}/api/admin/scrape`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`${API}/api/admin/scrape`, { method: 'POST', headers: headers() });
     const json = await res.json();
     setScrapeMsg(json.message);
-    setTimeout(() => setScrapeMsg(''), 5000);
+    setTimeout(() => setScrapeMsg(''), 6000);
   };
 
-  const updateStatus = async (id: string, status: string) => {
-    await fetch(`${API}/api/admin/consulting/${id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status }),
-    });
+  const updateConsultingStatus = async (id: string, status: string) => {
+    await fetch(`${API}/api/admin/consulting/${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status }) });
     setConsulting(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+  };
+
+  const updateSubsidyStatus = async (id: string, status: string) => {
+    await fetch(`${API}/api/admin/subsidies/${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status }) });
+    setSubsidies(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+  };
+
+  const deleteSubsidy = async (id: string) => {
+    if (!confirm('この補助金を削除しますか？')) return;
+    const res = await fetch(`${API}/api/admin/subsidies/${id}`, { method: 'DELETE', headers: headers() });
+    if (res.ok) setSubsidies(prev => prev.filter(s => s.id !== id));
+  };
+
+  const addSubsidy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch(`${API}/api/admin/subsidies`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ ...addForm, maxAmount: addForm.maxAmount ? parseInt(addForm.maxAmount) : null }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      setSubsidies(prev => [json.data, ...prev]);
+      setShowAddSubsidy(false);
+      setAddForm({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '' });
+    }
   };
 
   if (!token) return (
     <div className="max-w-md mx-auto px-4 py-16">
       <div className="card p-8">
-        <h1 className="text-2xl font-bold text-navy mb-6 text-center">管理者ログイン</h1>
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-2">🔐</div>
+          <h1 className="text-2xl font-bold text-navy">管理者ログイン</h1>
+        </div>
         <form onSubmit={login} className="space-y-4">
           <div>
             <label className="label">メールアドレス</label>
@@ -79,58 +123,73 @@ export default function AdminPage() {
     </div>
   );
 
+  const TABS: { key: Tab; label: string; count?: number }[] = [
+    { key: 'stats', label: 'ダッシュボード' },
+    { key: 'subsidies', label: '補助金管理', count: subsidies.length },
+    { key: 'consulting', label: '相談管理', count: consulting.filter(c => c.status === 'pending').length },
+    { key: 'alerts', label: 'アラート', count: alerts.length },
+    { key: 'scrape', label: 'スクレイピング' },
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-navy">管理ダッシュボード</h1>
-        <button onClick={() => { localStorage.removeItem('admin_token'); setToken(''); setStats(null); }}
-          className="text-sm text-gray-500 hover:text-gray-700">ログアウト</button>
+        <div className="flex gap-3">
+          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">← サイトへ戻る</Link>
+          <button onClick={() => { localStorage.removeItem('admin_token'); setToken(''); setStats(null); }}
+            className="text-sm text-red-500 hover:text-red-700">ログアウト</button>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats cards */}
       {stats && (
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: '補助金総数', value: stats.subsidies, icon: '🏛' },
-            { label: 'アクティブアラート', value: stats.alerts, icon: '🔔' },
-            { label: '相談件数', value: stats.consulting, icon: '💬' },
+            { label: '補助金総数', value: stats.subsidies, icon: '🏛', color: 'bg-blue-50' },
+            { label: 'アクティブアラート', value: stats.alerts, icon: '🔔', color: 'bg-green-50' },
+            { label: '相談件数', value: stats.consulting, icon: '💬', color: 'bg-orange-50' },
+            { label: '最新スクレイプ', value: stats.recentScrapes.length > 0 ? '✅ 完了' : '－', icon: '🔄', color: 'bg-purple-50' },
           ].map(s => (
-            <div key={s.label} className="card p-5 text-center">
-              <div className="text-3xl mb-2">{s.icon}</div>
-              <div className="text-3xl font-bold text-navy">{s.value}</div>
-              <div className="text-gray-500 text-sm mt-1">{s.label}</div>
+            <div key={s.label} className={`card p-4 text-center ${s.color}`}>
+              <div className="text-2xl mb-1">{s.icon}</div>
+              <div className="text-2xl font-bold text-navy">{s.value}</div>
+              <div className="text-gray-500 text-xs mt-1">{s.label}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
-        {(['stats', 'consulting', 'scrape'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === t ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {t === 'stats' ? 'スクレイプログ' : t === 'consulting' ? '相談管理' : 'スクレイピング'}
+      <div className="flex flex-wrap gap-1 mb-6 bg-gray-100 p-1 rounded-lg">
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${tab === t.key ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            {t.label}
+            {t.count !== undefined && t.count > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-navy text-white' : 'bg-gray-300 text-gray-600'}`}>{t.count}</span>
+            )}
           </button>
         ))}
       </div>
 
+      {/* Stats Tab */}
       {tab === 'stats' && stats && (
         <div className="card overflow-hidden">
+          <div className="px-4 py-3 bg-gray-50 border-b font-medium text-sm text-gray-600">最近のスクレイプログ</div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
-              <tr>
-                {['自治体', 'ステータス', '取得件数', '日時'].map(h => <th key={h} className="px-4 py-3 text-left text-gray-600 font-medium">{h}</th>)}
-              </tr>
+              <tr>{['自治体', 'ステータス', '取得件数', '日時'].map(h => <th key={h} className="px-4 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
             </thead>
             <tbody>
               {stats.recentScrapes.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">スクレイプ履歴なし</td></tr>
-              ) : stats.recentScrapes.map((s: any) => (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">スクレイプ履歴なし。「スクレイピング」タブから実行できます。</td></tr>
+              ) : stats.recentScrapes.map((s: ScrapeLog) => (
                 <tr key={s.id} className="border-t border-gray-100">
-                  <td className="px-4 py-3">{s.targetName}</td>
-                  <td className="px-4 py-3"><span className={`badge ${s.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{s.status}</span></td>
-                  <td className="px-4 py-3">{s.subsidiesFound}件</td>
-                  <td className="px-4 py-3 text-gray-500">{new Date(s.createdAt).toLocaleString('ja-JP')}</td>
+                  <td className="px-4 py-2.5">{s.targetName}</td>
+                  <td className="px-4 py-2.5"><span className={`badge text-xs ${s.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{s.status}</span></td>
+                  <td className="px-4 py-2.5 text-gray-600">{s.subsidiesFound}件</td>
+                  <td className="px-4 py-2.5 text-gray-400 text-xs">{new Date(s.createdAt).toLocaleString('ja-JP')}</td>
                 </tr>
               ))}
             </tbody>
@@ -138,28 +197,132 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Subsidies Tab */}
+      {tab === 'subsidies' && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-sm text-gray-500">{subsidies.length}件</p>
+            <button onClick={() => setShowAddSubsidy(!showAddSubsidy)} className="btn-primary text-sm">
+              {showAddSubsidy ? 'キャンセル' : '+ 補助金を追加'}
+            </button>
+          </div>
+
+          {showAddSubsidy && (
+            <div className="card p-6 mb-6 bg-blue-50">
+              <h3 className="font-bold text-navy mb-4">新規補助金追加</h3>
+              <form onSubmit={addSubsidy} className="grid sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="label">タイトル *</label>
+                  <input className="input" value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} required placeholder="補助金名称" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="label">説明 *</label>
+                  <textarea className="input h-20 resize-none" value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="label">カテゴリ</label>
+                  <select className="input" value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))}>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">対象</label>
+                  <input className="input" value={addForm.targetType} onChange={e => setAddForm(f => ({ ...f, targetType: e.target.value }))} placeholder="中小企業" />
+                </div>
+                <div>
+                  <label className="label">レベル</label>
+                  <select className="input" value={addForm.level} onChange={e => setAddForm(f => ({ ...f, level: e.target.value }))}>
+                    {['国','都道府県','市区町村'].map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">都道府県</label>
+                  <select className="input" value={addForm.prefecture} onChange={e => setAddForm(f => ({ ...f, prefecture: e.target.value }))}>
+                    {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">上限額（円）</label>
+                  <input type="number" className="input" value={addForm.maxAmount} onChange={e => setAddForm(f => ({ ...f, maxAmount: e.target.value }))} placeholder="1000000" />
+                </div>
+                <div>
+                  <label className="label">補助率</label>
+                  <input className="input" value={addForm.subsidyRate} onChange={e => setAddForm(f => ({ ...f, subsidyRate: e.target.value }))} placeholder="1/2" />
+                </div>
+                <div>
+                  <label className="label">申請URL</label>
+                  <input type="url" className="input" value={addForm.applicationUrl} onChange={e => setAddForm(f => ({ ...f, applicationUrl: e.target.value }))} placeholder="https://..." />
+                </div>
+                <div>
+                  <label className="label">申請要件</label>
+                  <input className="input" value={addForm.requirements} onChange={e => setAddForm(f => ({ ...f, requirements: e.target.value }))} />
+                </div>
+                <div className="sm:col-span-2">
+                  <button type="submit" className="btn-primary">追加する</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>{['タイトル', 'レベル', 'カテゴリ', '地域', '上限額', 'ステータス', '操作'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {subsidies.map(s => (
+                  <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-3 py-2.5">
+                      <Link href={`/subsidies/${s.id}`} target="_blank" className="font-medium text-navy hover:underline line-clamp-1 max-w-xs block">
+                        {s.title}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500">{s.level}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500">{s.category}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500">{s.prefecture}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500">{s.maxAmount ? `¥${Number(s.maxAmount).toLocaleString()}` : '－'}</td>
+                    <td className="px-3 py-2.5">
+                      <select value={s.status} onChange={e => updateSubsidyStatus(s.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-1.5 py-0.5">
+                        <option value="active">active</option>
+                        <option value="closed">closed</option>
+                        <option value="upcoming">upcoming</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <button onClick={() => deleteSubsidy(s.id)} className="text-xs text-red-500 hover:text-red-700">削除</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Consulting Tab */}
       {tab === 'consulting' && (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
-              <tr>
-                {['名前', 'メール', '会社', '都道府県', 'ステータス', '操作'].map(h => <th key={h} className="px-4 py-3 text-left text-gray-600 font-medium">{h}</th>)}
-              </tr>
+              <tr>{['名前', 'メール', '業種', '都道府県', 'ステータス', '日時', '操作'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
             </thead>
             <tbody>
               {consulting.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">相談なし</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">相談なし</td></tr>
               ) : consulting.map(c => (
-                <tr key={c.id} className="border-t border-gray-100">
-                  <td className="px-4 py-3 font-medium">{c.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{c.email}</td>
-                  <td className="px-4 py-3">{c.company || '－'}</td>
-                  <td className="px-4 py-3">{c.prefecture || '－'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`badge ${c.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : c.status === 'contacted' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{c.status}</span>
+                <tr key={c.id} className={`border-t border-gray-100 hover:bg-gray-50 ${c.status === 'pending' ? 'bg-yellow-50/50' : ''}`}>
+                  <td className="px-3 py-2.5 font-medium">{c.name}</td>
+                  <td className="px-3 py-2.5 text-gray-500 text-xs">{c.email}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{(c as any).industry || '－'}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{c.prefecture || '－'}</td>
+                  <td className="px-3 py-2.5">
+                    <span className={`badge text-xs ${c.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : c.status === 'contacted' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{c.status}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <select value={c.status} onChange={e => updateStatus(c.id, e.target.value)} className="text-xs border border-gray-200 rounded px-2 py-1">
+                  <td className="px-3 py-2.5 text-xs text-gray-400">{new Date(c.createdAt).toLocaleDateString('ja-JP')}</td>
+                  <td className="px-3 py-2.5">
+                    <select value={c.status} onChange={e => updateConsultingStatus(c.id, e.target.value)}
+                      className="text-xs border border-gray-200 rounded px-1.5 py-0.5">
                       <option value="pending">pending</option>
                       <option value="contacted">contacted</option>
                       <option value="closed">closed</option>
@@ -172,17 +335,54 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Alerts Tab */}
+      {tab === 'alerts' && (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>{['メール', '都道府県', 'カテゴリ', '認証済み', 'アクティブ', '登録日'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {alerts.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">アラート登録なし</td></tr>
+              ) : alerts.map(a => (
+                <tr key={a.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-3 py-2.5 font-medium">{a.email}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{a.prefectures.slice(0, 2).join('・') || '全国'}{a.prefectures.length > 2 ? `他${a.prefectures.length - 2}` : ''}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{a.categories.slice(0, 2).join('・') || '全て'}</td>
+                  <td className="px-3 py-2.5"><span className={`badge text-xs ${a.verified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{a.verified ? '✓' : '未'}</span></td>
+                  <td className="px-3 py-2.5"><span className={`badge text-xs ${a.active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{a.active ? 'ON' : 'OFF'}</span></td>
+                  <td className="px-3 py-2.5 text-xs text-gray-400">{new Date(a.createdAt).toLocaleDateString('ja-JP')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Scrape Tab */}
       {tab === 'scrape' && (
-        <div className="card p-6">
-          <h2 className="font-bold text-navy text-lg mb-3">手動スクレイピング</h2>
-          <p className="text-gray-600 text-sm mb-4">54の自治体サイトから補助金情報を手動で取得します。完了まで数分かかります。</p>
-          <button onClick={triggerScrape} className="btn-primary">スクレイピングを開始</button>
-          {scrapeMsg && <p className="mt-3 text-green-600 font-medium">{scrapeMsg}</p>}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
-            <strong>自動スケジュール:</strong><br/>
-            毎週月曜 AM2:00 JST — 自動スクレイピング<br/>
-            毎週月曜 AM8:00 JST — 週次ダイジェストメール送信<br/>
-            毎日 AM9:00 JST — 締切アラートメール送信
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="card p-6">
+            <h2 className="font-bold text-navy text-lg mb-3">手動スクレイピング</h2>
+            <p className="text-gray-600 text-sm mb-4">54の自治体サイトから補助金情報を取得します。完了まで数分かかります。</p>
+            <button onClick={triggerScrape} className="btn-primary">🔄 スクレイピングを開始</button>
+            {scrapeMsg && <p className="mt-3 text-green-600 font-medium text-sm">{scrapeMsg}</p>}
+          </div>
+          <div className="card p-6 bg-gray-50">
+            <h2 className="font-bold text-navy text-lg mb-3">自動スケジュール</h2>
+            <div className="space-y-3 text-sm">
+              {[
+                { time: '毎週月曜 AM2:00 JST', desc: '全54自治体の自動スクレイピング', color: 'bg-blue-100 text-blue-700' },
+                { time: '毎週月曜 AM8:00 JST', desc: '週次ダイジェストメール（ADMIN_EMAIL宛）', color: 'bg-green-100 text-green-700' },
+                { time: '毎日 AM9:00 JST', desc: '締切3日前アラートメール（登録ユーザー宛）', color: 'bg-orange-100 text-orange-700' },
+              ].map(s => (
+                <div key={s.time} className="flex gap-3 items-start">
+                  <span className={`badge text-xs mt-0.5 flex-shrink-0 ${s.color}`}>{s.time}</span>
+                  <span className="text-gray-600">{s.desc}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

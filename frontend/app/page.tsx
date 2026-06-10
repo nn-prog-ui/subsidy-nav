@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 const FEATURES = [
   { icon: '🔍', title: '全国補助金検索', desc: '国・都道府県・市区町村の補助金をキーワード・カテゴリ・地域で絞り込み検索。' },
   { icon: '🎯', title: 'マッチング診断', desc: '3つの質問に答えるだけで、あなたの事業に最適な補助金を自動診断。' },
@@ -11,7 +13,33 @@ const FEATURES = [
 
 const CATEGORIES = ['IT・デジタル', '設備投資', '創業支援', '雇用促進', '環境・エネルギー', '販路拡大', '農業・林業', '事業再構築'];
 
-export default function Home() {
+async function getStats() {
+  try {
+    const res = await fetch(`${API}/api/subsidies/stats`, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data;
+  } catch { return null; }
+}
+
+async function getFeaturedSubsidies() {
+  try {
+    const res = await fetch(`${API}/api/subsidies?limit=6&page=1`, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch { return []; }
+}
+
+const LEVEL_COLORS: Record<string, string> = {
+  '国': 'bg-red-100 text-red-700',
+  '都道府県': 'bg-blue-100 text-blue-700',
+  '市区町村': 'bg-green-100 text-green-700',
+};
+
+export default async function Home() {
+  const [stats, featured] = await Promise.all([getStats(), getFeaturedSubsidies()]);
+
   return (
     <div>
       {/* Hero */}
@@ -37,14 +65,23 @@ export default function Home() {
             </Link>
           </div>
           <div className="mt-12 grid grid-cols-3 gap-8 max-w-lg mx-auto text-center">
-            <div><div className="text-3xl font-bold text-accent">45件+</div><div className="text-sm text-gray-400 mt-1">シード補助金</div></div>
-            <div><div className="text-3xl font-bold text-accent">54</div><div className="text-sm text-gray-400 mt-1">スクレイプ自治体</div></div>
-            <div><div className="text-3xl font-bold text-accent">7種</div><div className="text-sm text-gray-400 mt-1">申請テンプレート</div></div>
+            <div>
+              <div className="text-3xl font-bold text-accent">{stats?.total || '45'}件+</div>
+              <div className="text-sm text-gray-400 mt-1">掲載補助金数</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-accent">54</div>
+              <div className="text-sm text-gray-400 mt-1">スクレイプ自治体</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-accent">7種</div>
+              <div className="text-sm text-gray-400 mt-1">申請テンプレート</div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Categories */}
+      {/* Category quick links */}
       <section className="py-10 bg-white border-b">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-wrap gap-3 justify-center">
@@ -58,8 +95,52 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Stats by level */}
+      {stats?.byLevel && (
+        <section className="py-8 bg-gray-50 border-b">
+          <div className="max-w-4xl mx-auto px-4">
+            <div className="grid grid-cols-3 gap-4">
+              {(stats.byLevel as { level: string; _count: { id: number } }[]).map(l => (
+                <Link key={l.level} href={`/subsidies?level=${encodeURIComponent(l.level)}`}
+                  className="card p-4 text-center hover:shadow-md transition-shadow">
+                  <div className="text-2xl font-bold text-navy">{l._count.id}</div>
+                  <div className="text-sm text-gray-500 mt-1">{l.level}の補助金</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Featured subsidies */}
+      {featured.length > 0 && (
+        <section className="py-12 px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-navy">新着・注目の補助金</h2>
+              <Link href="/subsidies" className="text-navy hover:underline text-sm">すべて見る →</Link>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {featured.map((s: any) => (
+                <Link key={s.id} href={`/subsidies/${s.id}`} className="card p-5 group block">
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <span className={`badge text-xs ${LEVEL_COLORS[s.level] || 'bg-gray-100 text-gray-700'}`}>{s.level}</span>
+                    <span className="badge text-xs bg-orange-100 text-orange-700">{s.category}</span>
+                  </div>
+                  <h3 className="font-bold text-navy text-sm group-hover:text-navy-light leading-tight mb-2 line-clamp-2">{s.title}</h3>
+                  <p className="text-gray-500 text-xs line-clamp-2 mb-3">{s.description}</p>
+                  {s.maxAmount && (
+                    <div className="text-sm font-semibold text-navy">上限 ¥{Number(s.maxAmount).toLocaleString()}</div>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features */}
-      <section className="py-16 px-4">
+      <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold text-center text-navy mb-2">補助金ナビの特徴</h2>
           <p className="text-center text-gray-500 mb-12">補助金申請をトータルサポート</p>
@@ -76,7 +157,7 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="py-16 px-4 bg-gray-50">
+      <section className="py-16 px-4">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center text-navy mb-12">ご利用の流れ</h2>
           <div className="grid md:grid-cols-3 gap-8">

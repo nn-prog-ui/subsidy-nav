@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -17,7 +17,7 @@ interface Subsidy {
   applicationEnd: string | null; status: string; municipalityName: string | null;
 }
 
-export default function SubsidiesPage() {
+function SubsidiesContent() {
   const sp = useSearchParams();
   const router = useRouter();
   const [subsidies, setSubsidies] = useState<Subsidy[]>([]);
@@ -149,5 +149,13 @@ export default function SubsidiesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SubsidiesPage() {
+  return (
+    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-8 text-gray-400">読み込み中...</div>}>
+      <SubsidiesContent />
+    </Suspense>
   );
 }

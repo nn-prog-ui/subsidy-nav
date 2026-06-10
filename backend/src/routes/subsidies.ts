@@ -24,10 +24,34 @@ router.get('/', async (req: Request, res: Response) => {
   res.json({ data, meta: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) } });
 });
 
+router.get('/stats', async (_req: Request, res: Response) => {
+  const [total, byLevel, byCategory] = await Promise.all([
+    prisma.subsidy.count({ where: { status: 'active' } }),
+    prisma.subsidy.groupBy({ by: ['level'], where: { status: 'active' }, _count: { id: true } }),
+    prisma.subsidy.groupBy({ by: ['category'], where: { status: 'active' }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 8 }),
+  ]);
+  res.json({ data: { total, byLevel, byCategory } });
+});
+
 router.get('/:id', async (req: Request, res: Response) => {
   const data = await prisma.subsidy.findUnique({ where: { id: req.params.id } });
   if (!data) return res.status(404).json({ error: 'Not found' });
-  res.json({ data });
+
+  // Related subsidies: same category + prefecture
+  const related = await prisma.subsidy.findMany({
+    where: {
+      id: { not: data.id },
+      status: 'active',
+      OR: [
+        { category: data.category, prefecture: data.prefecture },
+        { category: data.category },
+      ],
+    },
+    take: 4,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  res.json({ data, related });
 });
 
 router.get('/:id/pdf', async (req: Request, res: Response) => {

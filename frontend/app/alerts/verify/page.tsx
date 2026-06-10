@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-export default function AlertVerifyPage() {
+function VerifyContent() {
   const sp = useSearchParams();
   const token = sp.get('token');
   const [status, setStatus] = useState<'loading'|'ok'|'error'>('loading');
@@ -17,7 +17,11 @@ export default function AlertVerifyPage() {
       .catch(() => setStatus('error'));
   }, [token]);
 
-  if (status === 'loading') return <div className="text-center py-20">確認中...</div>;
+  if (status === 'loading') return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-10 h-10 border-4 border-navy border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   return (
     <div className="max-w-md mx-auto px-4 py-16 text-center">
@@ -25,7 +29,7 @@ export default function AlertVerifyPage() {
         <>
           <div className="text-6xl mb-4">✅</div>
           <h1 className="text-2xl font-bold text-navy mb-3">アラートが有効化されました</h1>
-          <p className="text-gray-600 mb-6">新着補助金情報をメールでお届けします。</p>
+          <p className="text-gray-600 mb-6">新着補助金情報・締切アラートをメールでお届けします。</p>
           <Link href="/subsidies" className="btn-primary inline-block">補助金を探す</Link>
         </>
       ) : (
@@ -37,5 +41,13 @@ export default function AlertVerifyPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function AlertVerifyPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-20">確認中...</div>}>
+      <VerifyContent />
+    </Suspense>
   );
 }
