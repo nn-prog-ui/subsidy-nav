@@ -108,3 +108,25 @@ router.get('/:id/pdf', async (req: Request, res: Response) => {
 });
 
 export default router;
+
+router.get('/calendar/events', async (req: Request, res: Response) => {
+  const { year, month } = req.query as Record<string, string>;
+  const y = parseInt(year || String(new Date().getFullYear()));
+  const m = parseInt(month || String(new Date().getMonth() + 1));
+  const start = new Date(y, m - 1, 1);
+  const end = new Date(y, m, 0, 23, 59, 59);
+
+  const data = await prisma.subsidy.findMany({
+    where: {
+      status: 'active',
+      OR: [
+        { applicationStart: { gte: start, lte: end } },
+        { applicationEnd: { gte: start, lte: end } },
+        { applicationStart: { lte: start }, applicationEnd: { gte: end } },
+      ],
+    },
+    select: { id: true, title: true, category: true, level: true, applicationStart: true, applicationEnd: true, maxAmount: true, prefecture: true },
+    orderBy: { applicationEnd: 'asc' },
+  });
+  res.json({ data });
+});

@@ -105,3 +105,53 @@ router.get('/alerts', requireAdmin, async (_req: Request, res: Response) => {
 });
 
 export default router;
+
+// CSV Import
+import { parse as csvParse } from 'csv-parse/sync';
+
+router.post('/import/csv', requireAdmin, async (req: Request, res: Response) => {
+  const { csv } = req.body;
+  if (!csv) return res.status(400).json({ error: 'csv field required' });
+
+  let records: any[];
+  try {
+    records = csvParse(csv, { columns: true, skip_empty_lines: true, trim: true });
+  } catch (e: any) {
+    return res.status(400).json({ error: 'CSV parse error: ' + e.message });
+  }
+
+  const results = { created: 0, errors: [] as string[] };
+  for (const row of records) {
+    try {
+      if (!row.title || !row.description || !row.category || !row.targetType || !row.level || !row.prefecture) {
+        results.errors.push(`行スキップ: title/description/category/targetType/level/prefecture が必須: ${row.title || '(no title)'}`);
+        continue;
+      }
+      await prisma.subsidy.create({
+        data: {
+          title: row.title,
+          description: row.description,
+          category: row.category,
+          targetType: row.targetType,
+          level: row.level,
+          prefecture: row.prefecture,
+          municipalityCode: row.municipalityCode || null,
+          municipalityName: row.municipalityName || null,
+          maxAmount: row.maxAmount ? BigInt(row.maxAmount) : null,
+          subsidyRate: row.subsidyRate || null,
+          applicationStart: row.applicationStart ? new Date(row.applicationStart) : null,
+          applicationEnd: row.applicationEnd ? new Date(row.applicationEnd) : null,
+          applicationUrl: row.applicationUrl || null,
+          requirements: row.requirements || null,
+          notes: row.notes || null,
+          status: row.status || 'active',
+        },
+      });
+      results.created++;
+    } catch (e: any) {
+      results.errors.push(`${row.title}: ${e.message}`);
+    }
+  }
+
+  res.json({ data: results });
+});
