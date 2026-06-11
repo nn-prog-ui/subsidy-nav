@@ -4,16 +4,17 @@ import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-interface Stats { subsidies: number; alerts: number; consulting: number; recentScrapes: ScrapeLog[]; }
+interface Stats { subsidies: number; alerts: number; consulting: number; users: number; recentScrapes: ScrapeLog[]; }
 interface ScrapeLog { id: string; targetName: string; status: string; subsidiesFound: number; createdAt: string; }
 interface ConsultingItem { id: string; name: string; email: string; company: string | null; prefecture: string | null; message: string; status: string; createdAt: string; }
 interface SubsidyItem { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; createdAt: string; }
 interface AlertItem { id: string; email: string; prefectures: string[]; categories: string[]; verified: boolean; active: boolean; createdAt: string; }
+interface UserItem { id: string; email: string; name: string | null; emailVerified: boolean; provider: string; createdAt: string; _count: { favorites: number }; }
 
 const CATEGORIES = ['IT・デジタル','設備投資','創業支援','雇用促進','環境・エネルギー','販路拡大','農業・林業','事業再構築','経営支援','地方創生','海外展開','伝統産業','各種補助金'];
 const PREFECTURES = ['全国','北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
-type Tab = 'stats' | 'subsidies' | 'consulting' | 'alerts' | 'scrape';
+type Tab = 'stats' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'scrape';
 
 export default function AdminPage() {
   const [token, setToken] = useState('');
@@ -22,6 +23,7 @@ export default function AdminPage() {
   const [consulting, setConsulting] = useState<ConsultingItem[]>([]);
   const [subsidies, setSubsidies] = useState<SubsidyItem[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [tab, setTab] = useState<Tab>('stats');
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
@@ -32,16 +34,18 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async (t: string) => {
     const h = { Authorization: `Bearer ${t}` };
-    const [s, c, sub, al] = await Promise.allSettled([
+    const [s, c, sub, al, us] = await Promise.allSettled([
       fetch(`${API}/api/admin/stats`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/consulting`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/subsidies?limit=50`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/alerts`, { headers: h }).then(r => r.json()),
+      fetch(`${API}/api/admin/users`, { headers: h }).then(r => r.json()),
     ]);
     if (s.status === 'fulfilled') setStats(s.value.data);
     if (c.status === 'fulfilled') setConsulting(c.value.data || []);
     if (sub.status === 'fulfilled') setSubsidies(sub.value.data || []);
     if (al.status === 'fulfilled') setAlerts(al.value.data || []);
+    if (us.status === 'fulfilled') setUsers(us.value.data || []);
   }, []);
 
   useEffect(() => {
@@ -128,6 +132,7 @@ export default function AdminPage() {
     { key: 'subsidies', label: '補助金管理', count: subsidies.length },
     { key: 'consulting', label: '相談管理', count: consulting.filter(c => c.status === 'pending').length },
     { key: 'alerts', label: 'アラート', count: alerts.length },
+    { key: 'users', label: 'ユーザー管理', count: users.length },
     { key: 'scrape', label: 'スクレイピング' },
   ];
 
@@ -147,9 +152,9 @@ export default function AdminPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
             { label: '補助金総数', value: stats.subsidies, icon: '🏛', color: 'bg-blue-50' },
+            { label: '登録ユーザー', value: stats.users ?? 0, icon: '👤', color: 'bg-teal-50' },
             { label: 'アクティブアラート', value: stats.alerts, icon: '🔔', color: 'bg-green-50' },
             { label: '相談件数', value: stats.consulting, icon: '💬', color: 'bg-orange-50' },
-            { label: '最新スクレイプ', value: stats.recentScrapes.length > 0 ? '✅ 完了' : '－', icon: '🔄', color: 'bg-purple-50' },
           ].map(s => (
             <div key={s.label} className={`card p-4 text-center ${s.color}`}>
               <div className="text-2xl mb-1">{s.icon}</div>
@@ -202,9 +207,14 @@ export default function AdminPage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <p className="text-sm text-gray-500">{subsidies.length}件</p>
-            <button onClick={() => setShowAddSubsidy(!showAddSubsidy)} className="btn-primary text-sm">
-              {showAddSubsidy ? 'キャンセル' : '+ 補助金を追加'}
-            </button>
+            <div className="flex gap-2">
+              <a href={`${API}/api/admin/subsidies/export/csv`}
+                onClick={e => { const el = e.currentTarget; el.href = el.href; const h = { Authorization: `Bearer ${token}` }; void fetch(`${API}/api/admin/subsidies/export/csv`, { headers: h }).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'subsidies.csv'; a.click(); }); e.preventDefault(); }}
+                className="btn-outline text-sm">📥 CSVエクスポート</a>
+              <button onClick={() => setShowAddSubsidy(!showAddSubsidy)} className="btn-primary text-sm">
+                {showAddSubsidy ? 'キャンセル' : '+ 補助金を追加'}
+              </button>
+            </div>
           </div>
 
           {showAddSubsidy && (
@@ -353,6 +363,38 @@ export default function AdminPage() {
                   <td className="px-3 py-2.5"><span className={`badge text-xs ${a.verified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{a.verified ? '✓' : '未'}</span></td>
                   <td className="px-3 py-2.5"><span className={`badge text-xs ${a.active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{a.active ? 'ON' : 'OFF'}</span></td>
                   <td className="px-3 py-2.5 text-xs text-gray-400">{new Date(a.createdAt).toLocaleDateString('ja-JP')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Users Tab */}
+      {tab === 'users' && (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>{['メール', '名前', 'お気に入り', '認証', 'プロバイダ', '登録日', '操作'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">ユーザーなし</td></tr>
+              ) : users.map(u => (
+                <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-3 py-2.5 font-medium text-sm">{u.email}</td>
+                  <td className="px-3 py-2.5 text-sm text-gray-600">{u.name || '－'}</td>
+                  <td className="px-3 py-2.5 text-center text-sm text-gray-500">{u._count.favorites}</td>
+                  <td className="px-3 py-2.5"><span className={`badge text-xs ${u.emailVerified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{u.emailVerified ? '✓' : '未'}</span></td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{u.provider}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-400">{new Date(u.createdAt).toLocaleDateString('ja-JP')}</td>
+                  <td className="px-3 py-2.5">
+                    <button onClick={async () => {
+                      if (!confirm(`${u.email} を削除しますか？`)) return;
+                      const res = await fetch(`${API}/api/admin/users/${u.id}`, { method: 'DELETE', headers: headers() });
+                      if (res.ok) setUsers(prev => prev.filter(x => x.id !== u.id));
+                    }} className="text-xs text-red-500 hover:text-red-700">削除</button>
+                  </td>
                 </tr>
               ))}
             </tbody>

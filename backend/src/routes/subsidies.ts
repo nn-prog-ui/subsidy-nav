@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { generateSubsidyPdf } from '../services/pdf';
+import { cacheMiddleware } from '../middleware/cache';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -69,7 +70,7 @@ router.get('/', async (req: Request, res: Response) => {
   res.json({ data, meta: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) } });
 });
 
-router.get('/stats', async (_req: Request, res: Response) => {
+router.get('/stats', cacheMiddleware(600), async (_req: Request, res: Response) => {
   const [total, byLevel, byCategory] = await Promise.all([
     prisma.subsidy.count({ where: { status: 'active' } }),
     prisma.subsidy.groupBy({ by: ['level'], where: { status: 'active' }, _count: { id: true } }),

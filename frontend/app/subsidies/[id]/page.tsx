@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 async function getSubsidy(id: string): Promise<{ data: SubsidyDetail; related: SubsidyDetail[] } | null> {
   try {
-    const res = await fetch(`${API}/api/subsidies/${id}`, { cache: 'no-store' });
+    const res = await fetch(`${API}/api/subsidies/${id}`, { next: { revalidate: 3600 } });
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }

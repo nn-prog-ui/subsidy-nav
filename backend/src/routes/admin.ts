@@ -2,14 +2,17 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { parse as csvParse } from 'csv-parse/sync';
 import { requireAdmin } from '../middleware/auth';
 import { runScrape } from '../services/scraper';
+import { invalidateCache } from '../middleware/cache';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 router.post('/login', async (req: Request, res: Response) => {
   const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'email and password required' });
   const user = await prisma.adminUser.findUnique({ where: { email } });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   const ok = await bcrypt.compare(password, user.passwordHash);
@@ -19,13 +22,14 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 router.get('/stats', requireAdmin, async (_req: Request, res: Response) => {
-  const [subsidies, alerts, consulting, scrapes] = await Promise.all([
+  const [subsidies, alerts, consulting, users, scrapes] = await Promise.all([
     prisma.subsidy.count(),
     prisma.alert.count({ where: { verified: true, active: true } }),
     prisma.consultingRequest.count(),
+    prisma.user.count(),
     prisma.scrapeLog.findMany({ orderBy: { createdAt: 'desc' }, take: 10 }),
   ]);
-  res.json({ data: { subsidies, alerts, consulting, recentScrapes: scrapes } });
+  res.json({ data: { subsidies, alerts, consulting, users, recentScrapes: scrapes } });
 });
 
 router.post('/scrape', requireAdmin, async (_req: Request, res: Response) => {
@@ -45,14 +49,32 @@ router.patch('/consulting/:id', requireAdmin, async (req: Request, res: Response
 
 // Subsidy CRUD
 router.get('/subsidies', requireAdmin, async (req: Request, res: Response) => {
-  const { page = '1', limit = '20', status } = req.query as Record<string, string>;
+  const { page = '1', limit = '20', status, keyword } = req.query as Record<string, string>;
   const skip = (parseInt(page) - 1) * parseInt(limit);
-  const where = status ? { status } : {};
+  const where: any = status ? { status } : {};
+  if (keyword) where.OR = [{ title: { contains: keyword, mode: 'insensitive' } }, { description: { contains: keyword, mode: 'insensitive' } }];
   const [total, data] = await Promise.all([
     prisma.subsidy.count({ where }),
     prisma.subsidy.findMany({ where, skip, take: parseInt(limit), orderBy: { createdAt: 'desc' } }),
   ]);
   res.json({ data, meta: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) } });
+});
+
+// CSV Export
+router.get('/subsidies/export/csv', requireAdmin, async (_req: Request, res: Response) => {
+  const data = await prisma.subsidy.findMany({ orderBy: { createdAt: 'desc' } });
+  const header = 'title,description,category,targetType,level,prefecture,municipalityCode,municipalityName,maxAmount,subsidyRate,applicationStart,applicationEnd,applicationUrl,requirements,notes,status';
+  const rows = data.map(s => [
+    s.title, s.description, s.category, s.targetType, s.level, s.prefecture,
+    s.municipalityCode || '', s.municipalityName || '',
+    s.maxAmount?.toString() || '', s.subsidyRate || '',
+    s.applicationStart?.toISOString().slice(0, 10) || '',
+    s.applicationEnd?.toISOString().slice(0, 10) || '',
+    s.applicationUrl || '', s.requirements || '', s.notes || '', s.status,
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="subsidies.csv"');
+  res.send('﻿' + [header, ...rows].join('\n'));
 });
 
 router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
@@ -64,18 +86,15 @@ router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
   const data = await prisma.subsidy.create({
     data: {
       title, description, category, targetType, level, prefecture,
-      municipalityCode: municipalityCode || null,
-      municipalityName: municipalityName || null,
-      maxAmount: maxAmount ? BigInt(maxAmount) : null,
-      subsidyRate: subsidyRate || null,
+      municipalityCode: municipalityCode || null, municipalityName: municipalityName || null,
+      maxAmount: maxAmount ? BigInt(maxAmount) : null, subsidyRate: subsidyRate || null,
       applicationStart: applicationStart ? new Date(applicationStart) : null,
       applicationEnd: applicationEnd ? new Date(applicationEnd) : null,
-      status: status || 'active',
-      applicationUrl: applicationUrl || null,
-      requirements: requirements || null,
-      notes: notes || null,
+      status: status || 'active', applicationUrl: applicationUrl || null,
+      requirements: requirements || null, notes: notes || null,
     },
   });
+  invalidateCache('/api/subsidies');
   res.status(201).json({ data });
 });
 
@@ -90,11 +109,22 @@ router.patch('/subsidies/:id', requireAdmin, async (req: Request, res: Response)
       ...(applicationEnd !== undefined ? { applicationEnd: applicationEnd ? new Date(applicationEnd) : null } : {}),
     },
   });
+  invalidateCache('/api/subsidies');
   res.json({ data });
+});
+
+// Bulk status update
+router.patch('/subsidies/bulk/status', requireAdmin, async (req: Request, res: Response) => {
+  const { ids, status } = req.body;
+  if (!ids?.length || !status) return res.status(400).json({ error: 'ids and status required' });
+  const { count } = await prisma.subsidy.updateMany({ where: { id: { in: ids } }, data: { status } });
+  invalidateCache('/api/subsidies');
+  res.json({ updated: count });
 });
 
 router.delete('/subsidies/:id', requireAdmin, async (req: Request, res: Response) => {
   await prisma.subsidy.delete({ where: { id: req.params.id } });
+  invalidateCache('/api/subsidies');
   res.json({ message: '削除しました' });
 });
 
@@ -104,11 +134,31 @@ router.get('/alerts', requireAdmin, async (_req: Request, res: Response) => {
   res.json({ data });
 });
 
-export default router;
+router.delete('/alerts/:id', requireAdmin, async (req: Request, res: Response) => {
+  await prisma.alert.delete({ where: { id: req.params.id } });
+  res.json({ message: '削除しました' });
+});
+
+// User management
+router.get('/users', requireAdmin, async (req: Request, res: Response) => {
+  const { page = '1', limit = '20' } = req.query as Record<string, string>;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const [total, data] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.findMany({
+      skip, take: parseInt(limit), orderBy: { createdAt: 'desc' },
+      select: { id: true, email: true, name: true, emailVerified: true, provider: true, createdAt: true, _count: { select: { favorites: true } } },
+    }),
+  ]);
+  res.json({ data, meta: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) } });
+});
+
+router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) => {
+  await prisma.user.delete({ where: { id: req.params.id } });
+  res.json({ message: '削除しました' });
+});
 
 // CSV Import
-import { parse as csvParse } from 'csv-parse/sync';
-
 router.post('/import/csv', requireAdmin, async (req: Request, res: Response) => {
   const { csv } = req.body;
   if (!csv) return res.status(400).json({ error: 'csv field required' });
@@ -124,27 +174,19 @@ router.post('/import/csv', requireAdmin, async (req: Request, res: Response) => 
   for (const row of records) {
     try {
       if (!row.title || !row.description || !row.category || !row.targetType || !row.level || !row.prefecture) {
-        results.errors.push(`行スキップ: title/description/category/targetType/level/prefecture が必須: ${row.title || '(no title)'}`);
+        results.errors.push(`行スキップ（必須項目不足）: ${row.title || '(no title)'}`);
         continue;
       }
       await prisma.subsidy.create({
         data: {
-          title: row.title,
-          description: row.description,
-          category: row.category,
-          targetType: row.targetType,
-          level: row.level,
-          prefecture: row.prefecture,
-          municipalityCode: row.municipalityCode || null,
-          municipalityName: row.municipalityName || null,
-          maxAmount: row.maxAmount ? BigInt(row.maxAmount) : null,
-          subsidyRate: row.subsidyRate || null,
+          title: row.title, description: row.description, category: row.category,
+          targetType: row.targetType, level: row.level, prefecture: row.prefecture,
+          municipalityCode: row.municipalityCode || null, municipalityName: row.municipalityName || null,
+          maxAmount: row.maxAmount ? BigInt(row.maxAmount) : null, subsidyRate: row.subsidyRate || null,
           applicationStart: row.applicationStart ? new Date(row.applicationStart) : null,
           applicationEnd: row.applicationEnd ? new Date(row.applicationEnd) : null,
-          applicationUrl: row.applicationUrl || null,
-          requirements: row.requirements || null,
-          notes: row.notes || null,
-          status: row.status || 'active',
+          applicationUrl: row.applicationUrl || null, requirements: row.requirements || null,
+          notes: row.notes || null, status: row.status || 'active',
         },
       });
       results.created++;
@@ -153,5 +195,17 @@ router.post('/import/csv', requireAdmin, async (req: Request, res: Response) => 
     }
   }
 
+  invalidateCache('/api/subsidies');
   res.json({ data: results });
 });
+
+// CSV Template download
+router.get('/import/csv/template', requireAdmin, (_req: Request, res: Response) => {
+  const header = 'title,description,category,targetType,level,prefecture,municipalityCode,municipalityName,maxAmount,subsidyRate,applicationStart,applicationEnd,applicationUrl,requirements,notes,status';
+  const example = '"IT導入補助金サンプル","ITツール導入支援","IT・デジタル","中小企業","国","全国","","",4500000,"1/2","2024-04-01","2024-12-31","https://example.com","要件サンプル","備考","active"';
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="import_template.csv"');
+  res.send('﻿' + [header, example].join('\n'));
+});
+
+export default router;
