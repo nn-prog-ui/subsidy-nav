@@ -1,8 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Link from 'next/link';
 import NavAuthLinks from './NavAuthLinks';
 import AnnouncementBanner from './AnnouncementBanner';
+import ServiceWorkerRegister from './ServiceWorkerRegister';
+import { Toaster } from './Toaster';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
 
@@ -31,12 +33,31 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   alternates: { canonical: BASE_URL },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '補助金ナビ',
+  },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#1e3a5f',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
       <body>
+        <ServiceWorkerRegister />
+        <Toaster />
+        <a href="#main-content" className="skip-link">本文へスキップ</a>
         <AnnouncementBanner />
         <header className="bg-navy text-white sticky top-0 z-50 shadow-lg">
           <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -59,7 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </nav>
         </header>
-        <main className="min-h-screen">{children}</main>
+        <main id="main-content" className="min-h-screen">{children}</main>
         <footer className="bg-navy text-white mt-16 py-12">
           <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
@@ -73,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <li><Link href="/matching" className="hover:text-white">マッチング診断</Link></li>
                 <li><Link href="/calendar" className="hover:text-white">カレンダー</Link></li>
                 <li><Link href="/compare" className="hover:text-white">補助金比較</Link></li>
+                <li><Link href="/analytics" className="hover:text-white">データ分析</Link></li>
                 <li><Link href="/alerts" className="hover:text-white">アラート登録</Link></li>
               </ul>
             </div>

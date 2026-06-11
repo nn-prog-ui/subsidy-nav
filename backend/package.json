@@ -5,6 +5,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "setup": "prisma generate && prisma migrate deploy && ts-node prisma/seed.ts"
   },
   "dependencies": {
@@ -21,24 +23,27 @@
     "pdfkit": "^0.14.0",
     "csv-parse": "^5.5.3",
     "zod": "^3.22.4",
-    "helmet": "*",
-    "express-rate-limit": "*",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
     "node-cache": "^5.1.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.11",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.0",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.14",
     "@types/pdfkit": "^0.13.3",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
     "prisma": "^5.7.0",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.2",
-    "@types/helmet": "*",
-    "@types/node-cache": "*"
+    "typescript": "^5.3.2"
   }
 }

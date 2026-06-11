@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { generateSubsidyPdf } from '../services/pdf';
 import { cacheMiddleware } from '../middleware/cache';
+import { buildTsQuery } from '../utils/search';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -14,7 +15,7 @@ router.get('/', async (req: Request, res: Response) => {
 
   // Full-text search via raw SQL when keyword provided
   if (keyword && keyword.trim()) {
-    const sanitized = keyword.trim().split(/\s+/).map(w => w + ':*').join(' & ');
+    const sanitized = buildTsQuery(keyword);
     const conditions: string[] = [`status = 'active'`];
     const params: (string | number)[] = [sanitized];
     let pi = 2;
@@ -77,6 +78,33 @@ router.get('/stats', cacheMiddleware(600), async (_req: Request, res: Response) 
     prisma.subsidy.groupBy({ by: ['category'], where: { status: 'active' }, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 8 }),
   ]);
   res.json({ data: { total, byLevel, byCategory } });
+});
+
+router.get('/analytics', cacheMiddleware(600), async (_req: Request, res: Response) => {
+  const where = { status: 'active' as const };
+  const [total, byLevel, byCategory, byPrefecture, amountStats, deadlineCount] = await Promise.all([
+    prisma.subsidy.count({ where }),
+    prisma.subsidy.groupBy({ by: ['level'], where, _count: { id: true } }),
+    prisma.subsidy.groupBy({ by: ['category'], where, _count: { id: true }, orderBy: { _count: { id: 'desc' } } }),
+    prisma.subsidy.groupBy({ by: ['prefecture'], where, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 12 }),
+    prisma.subsidy.aggregate({ where: { ...where, maxAmount: { not: null } }, _avg: { maxAmount: true }, _max: { maxAmount: true }, _min: { maxAmount: true } }),
+    prisma.subsidy.count({ where: { ...where, applicationEnd: { gte: new Date(), lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } } }),
+  ]);
+
+  res.json({
+    data: {
+      total,
+      byLevel: byLevel.map(l => ({ label: l.level, count: l._count.id })),
+      byCategory: byCategory.map(c => ({ label: c.category, count: c._count.id })),
+      byPrefecture: byPrefecture.map(p => ({ label: p.prefecture, count: p._count.id })),
+      amount: {
+        avg: amountStats._avg.maxAmount ? Number(amountStats._avg.maxAmount) : 0,
+        max: amountStats._max.maxAmount ? Number(amountStats._max.maxAmount) : 0,
+        min: amountStats._min.maxAmount ? Number(amountStats._min.maxAmount) : 0,
+      },
+      deadlineSoon: deadlineCount,
+    },
+  });
 });
 
 router.get('/:id', async (req: Request, res: Response) => {

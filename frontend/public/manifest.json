@@ -1,0 +1,26 @@
+{
+  "name": "補助金ナビ | 日本全国の補助金・助成金情報",
+  "short_name": "補助金ナビ",
+  "description": "国・都道府県・市区町村の補助金・助成金を一元検索。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e3a5f",
+  "lang": "ja",
+  "orientation": "portrait-primary",
+  "categories": ["business", "finance", "government"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
