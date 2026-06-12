@@ -2,13 +2,13 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { generateSubsidyPdf } from '../services/pdf';
 import { cacheMiddleware } from '../middleware/cache';
-import { buildTsQuery } from '../utils/search';
+import { buildTsQuery, expandSynonyms } from '../utils/search';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 router.get('/', async (req: Request, res: Response) => {
-  const { prefecture, category, level, keyword, targetType, amountMin, amountMax, sort, closingSoon, page = '1', limit = '20' } = req.query as Record<string, string>;
+  const { prefecture, category, level, keyword, targetType, amountMin, amountMax, sort, closingSoon, difficulty, page = '1', limit = '20' } = req.query as Record<string, string>;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const pageNum = parseInt(page);
   const limitNum = parseInt(limit);
@@ -64,14 +64,26 @@ router.get('/', async (req: Request, res: Response) => {
 
   // Standard Prisma query (no keyword or fallback)
   const where: Prisma.SubsidyWhereInput = { status: 'active' };
-  if (prefecture && prefecture !== '全国') (where as any).OR = [{ prefecture }, { prefecture: '全国' }];
   if (category) where.category = category;
   if (level) where.level = level;
   if (targetType) where.targetType = { contains: targetType };
-  if (keyword) where.OR = [
-    { title: { contains: keyword, mode: 'insensitive' } },
-    { description: { contains: keyword, mode: 'insensitive' } },
-  ];
+
+  // 地域・キーワードは AND で結合（双方が OR を持つため上書きを避ける）
+  const and: Prisma.SubsidyWhereInput[] = [];
+  if (prefecture && prefecture !== '全国') {
+    and.push({ OR: [{ prefecture }, { prefecture: '全国' }] });
+  }
+  if (keyword) {
+    // 同義語・表記ゆれを展開して再現率を高める
+    const terms = expandSynonyms(keyword);
+    and.push({
+      OR: terms.flatMap(t => [
+        { title: { contains: t, mode: 'insensitive' as const } },
+        { description: { contains: t, mode: 'insensitive' as const } },
+      ]),
+    });
+  }
+  if (and.length) where.AND = and;
 
   // 金額レンジ（補助上限額でフィルタ）
   if (amountMin || amountMax) {
@@ -83,6 +95,7 @@ router.get('/', async (req: Request, res: Response) => {
   if (closingSoon === 'true') {
     where.applicationEnd = { gte: new Date(), lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) };
   }
+  if (difficulty) where.difficulty = difficulty;
 
   const [total, data] = await Promise.all([
     prisma.subsidy.count({ where }),

@@ -128,11 +128,20 @@ async function main() {
     { title: '鹿児島市農業6次産業化補助金', description: '農業生産から加工・販売まで一貫した6次産業化取り組みへの支援。', category: '農業・林業', targetType: '農業事業者', level: '市区町村', prefecture: '鹿児島県', municipalityCode: '462011', municipalityName: '鹿児島市', maxAmount: 3000000n, subsidyRate: '1/2', status: 'active' },
   ];
 
+  // 難易度・所要日数を補助額と区分から推定
+  const deriveMeta = (s: any): { difficulty: string; estimatedDays: number } => {
+    const amount = s.maxAmount ? Number(s.maxAmount) : 0;
+    if (s.level === '国' && amount >= 10000000) return { difficulty: 'hard', estimatedDays: 60 };
+    if (amount >= 10000000) return { difficulty: 'hard', estimatedDays: 45 };
+    if (s.level === '市区町村' || amount < 2000000) return { difficulty: 'easy', estimatedDays: 14 };
+    return { difficulty: 'medium', estimatedDays: 30 };
+  };
+
   // upsertを使って重複エラーを避ける
   let count = 0;
   for (const s of subsidies) {
     try {
-      await prisma.subsidy.create({ data: s as any });
+      await prisma.subsidy.create({ data: { ...s, ...deriveMeta(s) } as any });
       count++;
     } catch {
       // skip duplicates on re-seed

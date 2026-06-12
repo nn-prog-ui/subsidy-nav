@@ -30,6 +30,7 @@ function SubsidiesContent() {
     amountMin: '',
     amountMax: '',
     closingSoon: false,
+    difficulty: '',
     sort: 'newest',
     page: 1,
   });
@@ -44,6 +45,7 @@ function SubsidiesContent() {
     if (filters.amountMin) params.set('amountMin', filters.amountMin);
     if (filters.amountMax) params.set('amountMax', filters.amountMax);
     if (filters.closingSoon) params.set('closingSoon', 'true');
+    if (filters.difficulty) params.set('difficulty', filters.difficulty);
     if (filters.sort && filters.sort !== 'newest') params.set('sort', filters.sort);
     params.set('page', String(filters.page));
     params.set('limit', '15');
@@ -109,13 +111,22 @@ function SubsidiesContent() {
                   onChange={e => update('amountMax', e.target.value)} />
               </div>
             </div>
+            <div>
+              <label className="label">申請難易度</label>
+              <select className="input" value={filters.difficulty} onChange={e => update('difficulty', e.target.value)}>
+                <option value="">すべて</option>
+                <option value="easy">易しい</option>
+                <option value="medium">普通</option>
+                <option value="hard">難しい</option>
+              </select>
+            </div>
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input type="checkbox" checked={filters.closingSoon}
                 onChange={e => setFilters(f => ({ ...f, closingSoon: e.target.checked, page: 1 }))}
                 className="rounded border-gray-300" />
               締切30日以内のみ
             </label>
-            <button onClick={() => setFilters({ prefecture: '', category: '', level: '', keyword: '', amountMin: '', amountMax: '', closingSoon: false, sort: 'newest', page: 1 })}
+            <button onClick={() => setFilters({ prefecture: '', category: '', level: '', keyword: '', amountMin: '', amountMax: '', closingSoon: false, difficulty: '', sort: 'newest', page: 1 })}
               className="w-full text-sm text-gray-500 hover:text-gray-700 underline text-left">
               フィルターをリセット
             </button>

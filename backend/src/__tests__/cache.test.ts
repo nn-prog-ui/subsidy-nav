@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { cacheMiddleware, invalidateCache, cache } from '../middleware/cache';
+import { cacheMiddleware, invalidateCache, flushCache } from '../middleware/cache';
 
 function makeApp() {
   const app = express();
@@ -9,15 +9,15 @@ function makeApp() {
     counter++;
     res.json({ value: counter });
   });
-  app.post('/data', (_req, res) => {
-    invalidateCache('/data');
+  app.post('/data', async (_req, res) => {
+    await invalidateCache('/data');
     res.json({ ok: true });
   });
   return app;
 }
 
 describe('cacheMiddleware', () => {
-  beforeEach(() => cache.flushAll());
+  beforeEach(async () => { await flushCache(); });
 
   it('2回目のGETはキャッシュから返す（X-Cache: HIT）', async () => {
     const app = makeApp();

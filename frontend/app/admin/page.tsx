@@ -50,7 +50,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
   const [showAddSubsidy, setShowAddSubsidy] = useState(false);
-  const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '' });
+  const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '', difficulty: '', estimatedDays: '' });
 
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
@@ -137,7 +137,7 @@ export default function AdminPage() {
       const json = await res.json();
       setSubsidies(prev => [json.data, ...prev]);
       setShowAddSubsidy(false);
-      setAddForm({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '' });
+      setAddForm({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '', difficulty: '', estimatedDays: '' });
     }
   };
 
@@ -326,6 +326,19 @@ export default function AdminPage() {
                 <div>
                   <label className="label">申請要件</label>
                   <input className="input" value={addForm.requirements} onChange={e => setAddForm(f => ({ ...f, requirements: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">申請難易度</label>
+                  <select className="input" value={addForm.difficulty} onChange={e => setAddForm(f => ({ ...f, difficulty: e.target.value }))}>
+                    <option value="">未設定</option>
+                    <option value="easy">易しい</option>
+                    <option value="medium">普通</option>
+                    <option value="hard">難しい</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">所要日数の目安</label>
+                  <input type="number" min="0" className="input" value={addForm.estimatedDays} onChange={e => setAddForm(f => ({ ...f, estimatedDays: e.target.value }))} placeholder="30" />
                 </div>
                 <div className="sm:col-span-2">
                   <button type="submit" className="btn-primary">追加する</button>

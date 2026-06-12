@@ -1,4 +1,33 @@
-import { buildTsQuery, formatAmount, daysUntilDeadline } from '../utils/search';
+import { buildTsQuery, formatAmount, daysUntilDeadline, expandSynonyms } from '../utils/search';
+
+describe('expandSynonyms', () => {
+  it('同義語を展開し元の語を含む', () => {
+    const r = expandSynonyms('IT');
+    expect(r).toContain('IT');
+    expect(r).toContain('デジタル');
+    expect(r).toContain('DX');
+  });
+
+  it('双方向に展開する（起業→創業）', () => {
+    expect(expandSynonyms('起業')).toContain('創業');
+    expect(expandSynonyms('創業')).toContain('起業');
+  });
+
+  it('辞書に無い語はそのまま返す', () => {
+    expect(expandSynonyms('補助金')).toEqual(['補助金']);
+  });
+
+  it('複数語をすべて展開し重複を排除する', () => {
+    const r = expandSynonyms('IT 創業');
+    expect(r).toContain('IT');
+    expect(r).toContain('創業');
+    expect(new Set(r).size).toBe(r.length);
+  });
+
+  it('空文字は空配列', () => {
+    expect(expandSynonyms('')).toEqual([]);
+  });
+});
 
 describe('buildTsQuery', () => {
   it('単一キーワードを前方一致に変換する', () => {

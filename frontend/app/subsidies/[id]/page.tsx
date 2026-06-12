@@ -18,7 +18,14 @@ interface SubsidyDetail {
   prefecture: string; level: string; maxAmount: number | null; subsidyRate: string | null;
   applicationStart: string | null; applicationEnd: string | null; applicationUrl: string | null;
   requirements: string | null; notes: string | null; municipalityName: string | null; status: string;
+  difficulty: string | null; estimatedDays: number | null;
 }
+
+const DIFFICULTY: Record<string, { label: string; color: string }> = {
+  easy: { label: '易しい', color: 'bg-green-100 text-green-700' },
+  medium: { label: '普通', color: 'bg-yellow-100 text-yellow-700' },
+  hard: { label: '難しい', color: 'bg-red-100 text-red-700' },
+};
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -100,6 +107,12 @@ export default async function SubsidyDetailPage({ params }: { params: Promise<{ 
           <span className="badge bg-orange-100 text-orange-700">{subsidy.category}</span>
           <span className="badge bg-gray-100 text-gray-600">{subsidy.prefecture}</span>
           {subsidy.municipalityName && <span className="badge bg-purple-100 text-purple-700">{subsidy.municipalityName}</span>}
+          {subsidy.difficulty && DIFFICULTY[subsidy.difficulty] && (
+            <span className={`badge ${DIFFICULTY[subsidy.difficulty].color}`}>申請難易度: {DIFFICULTY[subsidy.difficulty].label}</span>
+          )}
+          {subsidy.estimatedDays && (
+            <span className="badge bg-indigo-100 text-indigo-700">目安 約{subsidy.estimatedDays}日</span>
+          )}
         </div>
 
         <h1 className="text-2xl font-bold text-navy mb-6">{subsidy.title}</h1>

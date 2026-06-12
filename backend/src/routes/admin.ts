@@ -92,7 +92,8 @@ router.get('/subsidies/export/csv', requireAdmin, async (_req: Request, res: Res
 
 router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
   const { title, description, category, targetType, level, prefecture, municipalityCode, municipalityName,
-    maxAmount, subsidyRate, applicationStart, applicationEnd, status, applicationUrl, requirements, notes } = req.body;
+    maxAmount, subsidyRate, applicationStart, applicationEnd, status, applicationUrl, requirements, notes,
+    difficulty, estimatedDays } = req.body;
   if (!title || !description || !category || !targetType || !level || !prefecture) {
     return res.status(400).json({ error: 'title, description, category, targetType, level, prefecture required' });
   }
@@ -105,6 +106,8 @@ router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
       applicationEnd: applicationEnd ? new Date(applicationEnd) : null,
       status: status || 'active', applicationUrl: applicationUrl || null,
       requirements: requirements || null, notes: notes || null,
+      difficulty: difficulty || null,
+      estimatedDays: estimatedDays ? parseInt(estimatedDays) : null,
     },
   });
   invalidateCache('/api/subsidies');
@@ -112,7 +115,7 @@ router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
 });
 
 router.patch('/subsidies/:id', requireAdmin, async (req: Request, res: Response) => {
-  const { maxAmount, applicationStart, applicationEnd, ...rest } = req.body;
+  const { maxAmount, applicationStart, applicationEnd, estimatedDays, ...rest } = req.body;
   const data = await prisma.subsidy.update({
     where: { id: req.params.id },
     data: {
@@ -120,6 +123,7 @@ router.patch('/subsidies/:id', requireAdmin, async (req: Request, res: Response)
       ...(maxAmount !== undefined ? { maxAmount: maxAmount ? BigInt(maxAmount) : null } : {}),
       ...(applicationStart !== undefined ? { applicationStart: applicationStart ? new Date(applicationStart) : null } : {}),
       ...(applicationEnd !== undefined ? { applicationEnd: applicationEnd ? new Date(applicationEnd) : null } : {}),
+      ...(estimatedDays !== undefined ? { estimatedDays: estimatedDays ? parseInt(estimatedDays) : null } : {}),
     },
   });
   invalidateCache('/api/subsidies');

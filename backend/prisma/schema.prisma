@@ -29,6 +29,8 @@ model Subsidy {
   contactEmail     String?
   requirements     String?
   notes            String?
+  difficulty       String?   // 申請難易度: easy | medium | hard
+  estimatedDays    Int?      // 申請にかかる目安日数
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
