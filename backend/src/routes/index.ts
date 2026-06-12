@@ -8,6 +8,8 @@ import adminRouter from './admin';
 import municipalitiesRouter from './municipalities';
 import authRouter from './auth';
 import favoritesRouter from './favorites';
+import progressRouter from './progress';
+import eventsRouter from './events';
 
 export const router = Router();
 
@@ -21,3 +23,5 @@ router.use('/admin', adminRouter);
 router.use('/municipalities', municipalitiesRouter);
 router.use('/auth', authRouter);
 router.use('/favorites', favoritesRouter);
+router.use('/progress', progressRouter);
+router.use('/events', eventsRouter);

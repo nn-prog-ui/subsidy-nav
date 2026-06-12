@@ -10,6 +10,17 @@ import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/ma
 import { invalidateCache } from '../middleware/cache';
 
 const router = Router();
+
+// 監査ログ記録ヘルパー（失敗してもメイン処理は止めない）
+async function recordAudit(req: Request, action: string, target: string, targetId?: string, detail?: string) {
+  try {
+    await prisma.auditLog.create({
+      data: { adminEmail: (req as any).adminEmail || 'unknown', action, target, targetId: targetId || null, detail: detail || null },
+    });
+  } catch (e: any) {
+    console.error('Audit log error:', e.message);
+  }
+}
 const prisma = new PrismaClient();
 
 router.post('/login', async (req: Request, res: Response) => {
@@ -93,7 +104,7 @@ router.get('/subsidies/export/csv', requireAdmin, async (_req: Request, res: Res
 router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
   const { title, description, category, targetType, level, prefecture, municipalityCode, municipalityName,
     maxAmount, subsidyRate, applicationStart, applicationEnd, status, applicationUrl, requirements, notes,
-    difficulty, estimatedDays } = req.body;
+    difficulty, estimatedDays, applicationSteps, requiredDocuments } = req.body;
   if (!title || !description || !category || !targetType || !level || !prefecture) {
     return res.status(400).json({ error: 'title, description, category, targetType, level, prefecture required' });
   }
@@ -108,8 +119,11 @@ router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
       requirements: requirements || null, notes: notes || null,
       difficulty: difficulty || null,
       estimatedDays: estimatedDays ? parseInt(estimatedDays) : null,
+      applicationSteps: Array.isArray(applicationSteps) ? applicationSteps : [],
+      requiredDocuments: Array.isArray(requiredDocuments) ? requiredDocuments : [],
     },
   });
+  await recordAudit(req, 'create', 'subsidy', data.id, data.title);
   invalidateCache('/api/subsidies');
   res.status(201).json({ data });
 });
@@ -127,6 +141,7 @@ router.patch('/subsidies/:id', requireAdmin, async (req: Request, res: Response)
     },
   });
   invalidateCache('/api/subsidies');
+  await recordAudit(req, 'update', 'subsidy', data.id, data.title);
   res.json({ data });
 });
 
@@ -136,12 +151,14 @@ router.patch('/subsidies/bulk/status', requireAdmin, async (req: Request, res: R
   if (!ids?.length || !status) return res.status(400).json({ error: 'ids and status required' });
   const { count } = await prisma.subsidy.updateMany({ where: { id: { in: ids } }, data: { status } });
   invalidateCache('/api/subsidies');
+  await recordAudit(req, 'update', 'subsidy', undefined, `一括ステータス変更 status=${status} count=${count}`);
   res.json({ updated: count });
 });
 
 router.delete('/subsidies/:id', requireAdmin, async (req: Request, res: Response) => {
   await prisma.subsidy.delete({ where: { id: req.params.id } });
   invalidateCache('/api/subsidies');
+  await recordAudit(req, 'delete', 'subsidy', req.params.id);
   res.json({ message: '削除しました' });
 });
 
@@ -172,7 +189,14 @@ router.get('/users', requireAdmin, async (req: Request, res: Response) => {
 
 router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) => {
   await prisma.user.delete({ where: { id: req.params.id } });
+  await recordAudit(req, 'delete', 'user', req.params.id);
   res.json({ message: '削除しました' });
+});
+
+// Audit logs
+router.get('/audit-logs', requireAdmin, async (_req: Request, res: Response) => {
+  const data = await prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  res.json({ data });
 });
 
 // CSV Import

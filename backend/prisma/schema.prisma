@@ -27,12 +27,14 @@ model Subsidy {
   scrapedAt        DateTime?
   contactPhone     String?
   contactEmail     String?
-  requirements     String?
-  notes            String?
-  difficulty       String?   // 申請難易度: easy | medium | hard
-  estimatedDays    Int?      // 申請にかかる目安日数
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  requirements      String?
+  notes             String?
+  difficulty        String?   // 申請難易度: easy | medium | hard
+  estimatedDays     Int?      // 申請にかかる目安日数
+  applicationSteps  String[]  // 申請ステップ（順序付き）
+  requiredDocuments String[]  // 必要書類
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([prefecture])
   @@index([category])
@@ -110,18 +112,56 @@ model ScrapeLog {
 }
 
 model User {
-  id               String     @id @default(cuid())
-  email            String     @unique
+  id               String                @id @default(cuid())
+  email            String                @unique
   passwordHash     String?
   name             String?
-  emailVerified    Boolean    @default(false)
-  verifyToken      String?    @unique
-  resetToken       String?    @unique
+  emailVerified    Boolean               @default(false)
+  verifyToken      String?               @unique
+  resetToken       String?               @unique
   resetTokenExpiry DateTime?
-  provider         String     @default("email")
+  provider         String                @default("email")
   favorites        Favorite[]
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  progress         ApplicationProgress[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+model ApplicationProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  subsidyId String
+  status    String   @default("considering") // considering|preparing|applied|approved|rejected
+  memo      String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, subsidyId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminEmail String
+  action     String // create|update|delete
+  target     String // subsidy|user|...
+  targetId   String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String // view|search|match
+  subsidyId String?
+  keyword   String?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([subsidyId])
 }
 
 model Favorite {

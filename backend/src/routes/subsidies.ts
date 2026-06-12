@@ -140,6 +140,31 @@ router.get('/analytics', cacheMiddleware(600), async (_req: Request, res: Respon
   });
 });
 
+// 人気の補助金（直近30日の閲覧イベント数で集計）
+router.get('/popular', cacheMiddleware(600), async (req: Request, res: Response) => {
+  const limit = Math.min(parseInt((req.query.limit as string) || '6'), 20);
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const grouped = await prisma.analyticsEvent.groupBy({
+    by: ['subsidyId'],
+    where: { type: 'view', subsidyId: { not: null }, createdAt: { gte: since } },
+    _count: { subsidyId: true },
+    orderBy: { _count: { subsidyId: 'desc' } },
+    take: limit,
+  });
+  const ids = grouped.map(g => g.subsidyId!).filter(Boolean);
+  if (ids.length === 0) {
+    // イベントが無ければ新着で代替
+    const fallback = await prisma.subsidy.findMany({ where: { status: 'active' }, take: limit, orderBy: { createdAt: 'desc' } });
+    return res.json({ data: fallback, basis: 'recent' });
+  }
+  const subsidies = await prisma.subsidy.findMany({ where: { id: { in: ids }, status: 'active' } });
+  const countMap = Object.fromEntries(grouped.map(g => [g.subsidyId, g._count.subsidyId]));
+  const ordered = subsidies
+    .map(s => ({ ...s, viewCount: countMap[s.id] || 0 }))
+    .sort((a, b) => b.viewCount - a.viewCount);
+  res.json({ data: ordered, basis: 'popular' });
+});
+
 // 閲覧履歴ベースのレコメンド（カテゴリ・都道府県の嗜好から推薦）
 router.get('/reco/personalized', async (req: Request, res: Response) => {
   const { categories, prefectures, exclude, limit = '6' } = req.query as Record<string, string>;

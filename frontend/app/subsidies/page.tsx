@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { trackEvent } from '../../lib/events';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -54,6 +55,7 @@ function SubsidiesContent() {
       const json = await res.json();
       setSubsidies(json.data || []);
       setMeta(json.meta || { total: 0, page: 1, pages: 1 });
+      if (filters.keyword.trim()) trackEvent('search', { keyword: filters.keyword.trim() });
     } catch {}
     setLoading(false);
   }, [filters]);

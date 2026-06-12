@@ -128,13 +128,20 @@ async function main() {
     { title: '鹿児島市農業6次産業化補助金', description: '農業生産から加工・販売まで一貫した6次産業化取り組みへの支援。', category: '農業・林業', targetType: '農業事業者', level: '市区町村', prefecture: '鹿児島県', municipalityCode: '462011', municipalityName: '鹿児島市', maxAmount: 3000000n, subsidyRate: '1/2', status: 'active' },
   ];
 
-  // 難易度・所要日数を補助額と区分から推定
-  const deriveMeta = (s: any): { difficulty: string; estimatedDays: number } => {
+  // 標準的な申請ステップ・必要書類（汎用）
+  const STEPS = ['募集要項の確認', '申請書類の準備', '電子申請または郵送で提出', '審査・採択結果の通知', '交付決定後に事業実施', '実績報告書の提出'];
+  const DOCS = ['交付申請書', '事業計画書', '収支予算書', '見積書', '会社概要・登記事項証明書', '直近の決算書'];
+
+  // 難易度・所要日数を補助額と区分から推定し、申請ステップ・必要書類を付与
+  const deriveMeta = (s: any): { difficulty: string; estimatedDays: number; applicationSteps: string[]; requiredDocuments: string[] } => {
     const amount = s.maxAmount ? Number(s.maxAmount) : 0;
-    if (s.level === '国' && amount >= 10000000) return { difficulty: 'hard', estimatedDays: 60 };
-    if (amount >= 10000000) return { difficulty: 'hard', estimatedDays: 45 };
-    if (s.level === '市区町村' || amount < 2000000) return { difficulty: 'easy', estimatedDays: 14 };
-    return { difficulty: 'medium', estimatedDays: 30 };
+    let difficulty = 'medium', estimatedDays = 30;
+    if (s.level === '国' && amount >= 10000000) { difficulty = 'hard'; estimatedDays = 60; }
+    else if (amount >= 10000000) { difficulty = 'hard'; estimatedDays = 45; }
+    else if (s.level === '市区町村' || amount < 2000000) { difficulty = 'easy'; estimatedDays = 14; }
+    // 難易度が高いほど書類を多めに
+    const docCount = difficulty === 'hard' ? 6 : difficulty === 'medium' ? 4 : 3;
+    return { difficulty, estimatedDays, applicationSteps: STEPS, requiredDocuments: DOCS.slice(0, docCount) };
   };
 
   // upsertを使って重複エラーを避ける

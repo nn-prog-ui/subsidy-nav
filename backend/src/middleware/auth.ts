@@ -8,7 +8,8 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    jwt.verify(auth.slice(7), process.env.JWT_SECRET || 'secret') as JwtAdminPayload;
+    const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET || 'secret') as JwtAdminPayload;
+    (req as any).adminEmail = payload.email;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });

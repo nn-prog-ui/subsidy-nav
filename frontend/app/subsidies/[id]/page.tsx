@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import FavoriteButton from './FavoriteButton';
 import RecordView from './RecordView';
+import ProgressTracker from './ProgressTracker';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
@@ -19,6 +20,7 @@ interface SubsidyDetail {
   applicationStart: string | null; applicationEnd: string | null; applicationUrl: string | null;
   requirements: string | null; notes: string | null; municipalityName: string | null; status: string;
   difficulty: string | null; estimatedDays: number | null;
+  applicationSteps: string[]; requiredDocuments: string[];
 }
 
 const DIFFICULTY: Record<string, { label: string; color: string }> = {
@@ -148,12 +150,43 @@ export default async function SubsidyDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
 
+        {subsidy.applicationSteps && subsidy.applicationSteps.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-navy mb-3">申請の流れ</h2>
+            <ol className="space-y-2">
+              {subsidy.applicationSteps.map((step, i) => (
+                <li key={i} className="flex gap-3 items-start">
+                  <span className="w-6 h-6 rounded-full bg-navy text-white text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                  <span className="text-gray-700 text-sm leading-relaxed">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {subsidy.requiredDocuments && subsidy.requiredDocuments.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-navy mb-3">必要書類</h2>
+            <ul className="space-y-1.5">
+              {subsidy.requiredDocuments.map((doc, i) => (
+                <li key={i} className="flex gap-2 items-start text-sm text-gray-700">
+                  <span className="text-green-600 mt-0.5">☑</span>
+                  <span>{doc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {subsidy.notes && (
           <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h2 className="font-bold text-yellow-800 mb-2">備考・注意事項</h2>
             <p className="text-yellow-700 text-sm">{subsidy.notes}</p>
           </div>
         )}
+
+        {/* 申請進捗トラッカー */}
+        <ProgressTracker subsidyId={subsidy.id} />
 
         <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-100">
           {subsidy.applicationUrl && (

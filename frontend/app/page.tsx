@@ -32,6 +32,15 @@ async function getFeaturedSubsidies() {
   } catch { return []; }
 }
 
+async function getPopularSubsidies() {
+  try {
+    const res = await fetch(`${API}/api/subsidies/popular?limit=6`, { next: { revalidate: 600 } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch { return []; }
+}
+
 const LEVEL_COLORS: Record<string, string> = {
   '国': 'bg-red-100 text-red-700',
   '都道府県': 'bg-blue-100 text-blue-700',
@@ -39,7 +48,7 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 export default async function Home() {
-  const [stats, featured] = await Promise.all([getStats(), getFeaturedSubsidies()]);
+  const [stats, featured, popular] = await Promise.all([getStats(), getFeaturedSubsidies(), getPopularSubsidies()]);
 
   return (
     <div>
@@ -130,6 +139,32 @@ export default async function Home() {
                   </div>
                   <h3 className="font-bold text-navy text-sm group-hover:text-navy-light leading-tight mb-2 line-clamp-2">{s.title}</h3>
                   <p className="text-gray-500 text-xs line-clamp-2 mb-3">{s.description}</p>
+                  {s.maxAmount && (
+                    <div className="text-sm font-semibold text-navy">上限 ¥{Number(s.maxAmount).toLocaleString()}</div>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Popular subsidies (server-side, by view events) */}
+      {popular.length > 0 && (
+        <section className="py-12 px-4 bg-gray-50">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-navy">🔥 人気の補助金</h2>
+              <Link href="/subsidies" className="text-navy hover:underline text-sm">すべて見る →</Link>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {popular.map((s: any) => (
+                <Link key={s.id} href={`/subsidies/${s.id}`} className="card p-5 group block">
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <span className={`badge text-xs ${LEVEL_COLORS[s.level] || 'bg-gray-100 text-gray-700'}`}>{s.level}</span>
+                    <span className="badge text-xs bg-orange-100 text-orange-700">{s.category}</span>
+                  </div>
+                  <h3 className="font-bold text-navy text-sm group-hover:text-navy-light leading-tight mb-2 line-clamp-2">{s.title}</h3>
                   {s.maxAmount && (
                     <div className="text-sm font-semibold text-navy">上限 ¥{Number(s.maxAmount).toLocaleString()}</div>
                   )}

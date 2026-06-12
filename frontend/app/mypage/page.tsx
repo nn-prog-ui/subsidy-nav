@@ -12,6 +12,19 @@ interface FavoriteItem {
 
 interface Reco { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; }
 
+interface ProgressItem {
+  id: string; subsidyId: string; status: string; updatedAt: string;
+  subsidy: { id: string; title: string; prefecture: string; category: string; level: string } | null;
+}
+
+const PROGRESS_STATUS: Record<string, { label: string; color: string }> = {
+  considering: { label: '検討中', color: 'bg-gray-100 text-gray-700' },
+  preparing: { label: '書類準備中', color: 'bg-blue-100 text-blue-700' },
+  applied: { label: '申請済み', color: 'bg-indigo-100 text-indigo-700' },
+  approved: { label: '採択', color: 'bg-green-100 text-green-700' },
+  rejected: { label: '不採択', color: 'bg-red-100 text-red-700' },
+};
+
 function FavoriteNoteEditor({ subsidyId, initialNote, onSave }: { subsidyId: string; initialNote: string | null; onSave: (id: string, note: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initialNote || '');
@@ -56,6 +69,7 @@ export default function MyPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [recos, setRecos] = useState<Reco[]>([]);
+  const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadRecos = () => {
@@ -75,6 +89,10 @@ export default function MyPage() {
         .catch(() => {})
         .finally(() => setLoading(false));
       loadRecos();
+      fetch(`${API}/api/progress`, { headers: authHeaders() })
+        .then(r => r.json())
+        .then(j => setProgress(j.data || []))
+        .catch(() => {});
     });
   }, [router]);
 
@@ -120,10 +138,14 @@ export default function MyPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <div className="card p-4 text-center">
           <div className="text-2xl font-bold text-navy">{favorites.length}</div>
           <div className="text-xs text-gray-500 mt-1">お気に入り</div>
+        </div>
+        <div className="card p-4 text-center">
+          <div className="text-2xl font-bold text-navy">{progress.length}</div>
+          <div className="text-xs text-gray-500 mt-1">申請進捗</div>
         </div>
         <div className="card p-4 text-center">
           <Link href="/alerts" className="block hover:opacity-80">
@@ -138,6 +160,28 @@ export default function MyPage() {
           </Link>
         </div>
       </div>
+
+      {/* 申請進捗 */}
+      {progress.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-navy mb-4">申請進捗</h2>
+          <div className="space-y-2">
+            {progress.map(p => (
+              <div key={p.id} className="card p-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  {p.subsidy ? (
+                    <Link href={`/subsidies/${p.subsidyId}`} className="font-medium text-navy hover:underline line-clamp-1">{p.subsidy.title}</Link>
+                  ) : <span className="text-gray-400 text-sm">補助金情報なし</span>}
+                  <div className="text-xs text-gray-400 mt-0.5">更新: {new Date(p.updatedAt).toLocaleDateString('ja-JP')}</div>
+                </div>
+                <span className={`badge text-xs flex-shrink-0 ${PROGRESS_STATUS[p.status]?.color || 'bg-gray-100 text-gray-600'}`}>
+                  {PROGRESS_STATUS[p.status]?.label || p.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Favorites */}
       <h2 className="text-xl font-bold text-navy mb-4">お気に入り補助金</h2>

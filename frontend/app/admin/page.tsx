@@ -12,11 +12,12 @@ interface AlertItem { id: string; email: string; prefectures: string[]; categori
 interface UserItem { id: string; email: string; name: string | null; emailVerified: boolean; provider: string; createdAt: string; _count: { favorites: number }; }
 interface Bucket { label: string; count: number; }
 interface AnalyticsData { total: number; byLevel: Bucket[]; byCategory: Bucket[]; byPrefecture: Bucket[]; amount: { avg: number; max: number; min: number }; deadlineSoon: number; }
+interface AuditItem { id: string; adminEmail: string; action: string; target: string; targetId: string | null; detail: string | null; createdAt: string; }
 
 const CATEGORIES = ['IT・デジタル','設備投資','創業支援','雇用促進','環境・エネルギー','販路拡大','農業・林業','事業再構築','経営支援','地方創生','海外展開','伝統産業','各種補助金'];
 const PREFECTURES = ['全国','北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
-type Tab = 'stats' | 'analytics' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'scrape';
+type Tab = 'stats' | 'analytics' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'audit' | 'scrape';
 
 function AdminBar({ data, color }: { data: Bucket[]; color: string }) {
   const max = Math.max(...data.map(d => d.count), 1);
@@ -46,6 +47,7 @@ export default function AdminPage() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditItem[]>([]);
   const [tab, setTab] = useState<Tab>('stats');
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
@@ -69,6 +71,7 @@ export default function AdminPage() {
     if (al.status === 'fulfilled') setAlerts(al.value.data || []);
     if (us.status === 'fulfilled') setUsers(us.value.data || []);
     fetch(`${API}/api/subsidies/analytics`).then(r => r.json()).then(j => setAnalytics(j.data)).catch(() => {});
+    fetch(`${API}/api/admin/audit-logs`, { headers: h }).then(r => r.json()).then(j => setAuditLogs(j.data || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -172,6 +175,7 @@ export default function AdminPage() {
     { key: 'consulting', label: '相談管理', count: consulting.filter(c => c.status === 'pending').length },
     { key: 'alerts', label: 'アラート', count: alerts.length },
     { key: 'users', label: 'ユーザー管理', count: users.length },
+    { key: 'audit', label: '監査ログ' },
     { key: 'scrape', label: 'スクレイピング' },
   ];
 
@@ -468,6 +472,32 @@ export default function AdminPage() {
                       if (res.ok) setUsers(prev => prev.filter(x => x.id !== u.id));
                     }} className="text-xs text-red-500 hover:text-red-700">削除</button>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Audit Log Tab */}
+      {tab === 'audit' && (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>{['日時', '管理者', '操作', '対象', '詳細'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {auditLogs.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">監査ログなし</td></tr>
+              ) : auditLogs.map(a => (
+                <tr key={a.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">{new Date(a.createdAt).toLocaleString('ja-JP')}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-600">{a.adminEmail}</td>
+                  <td className="px-3 py-2.5">
+                    <span className={`badge text-xs ${a.action === 'delete' ? 'bg-red-100 text-red-700' : a.action === 'create' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{a.action}</span>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{a.target}{a.targetId ? ` (${a.targetId.slice(0, 8)})` : ''}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500 max-w-xs truncate">{a.detail || '－'}</td>
                 </tr>
               ))}
             </tbody>
