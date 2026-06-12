@@ -10,7 +10,7 @@ const EMPLOYEES = ['1〜5名','6〜20名','21〜50名','51〜100名','101〜300�
 
 const LEVEL_COLORS: Record<string, string> = { '国': 'bg-red-100 text-red-700', '都道府県': 'bg-blue-100 text-blue-700', '市区町村': 'bg-green-100 text-green-700' };
 
-interface Subsidy { id: string; title: string; description: string; category: string; level: string; prefecture: string; maxAmount: number | null; subsidyRate: string | null; score: number; }
+interface Subsidy { id: string; title: string; description: string; category: string; level: string; prefecture: string; maxAmount: number | null; subsidyRate: string | null; score: number; matchScore: number; reasons: string[]; }
 
 const STEPS = ['都道府県を選択', '業種を選択', '従業員数を選択'];
 
@@ -60,13 +60,23 @@ export default function MatchingPage() {
                   {i + 1}
                 </div>
                 <div className="flex-1">
-                  <div className="flex flex-wrap gap-2 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className={`badge ${LEVEL_COLORS[s.level] || 'bg-gray-100'}`}>{s.level}</span>
                     <span className="badge bg-orange-100 text-orange-700">{s.category}</span>
                     <span className="badge bg-gray-100 text-gray-600">{s.prefecture}</span>
+                    {typeof s.matchScore === 'number' && (
+                      <span className="badge bg-green-100 text-green-700 ml-auto">マッチ度 {s.matchScore}%</span>
+                    )}
                   </div>
                   <h3 className="font-bold text-navy group-hover:text-navy-light">{s.title}</h3>
-                  <p className="text-gray-600 text-sm mt-1 line-clamp-2">{s.description}</p>
+                  {s.reasons && s.reasons.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {s.reasons.map(r => (
+                        <span key={r} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-100">✓ {r}</span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-gray-600 text-sm mt-2 line-clamp-2">{s.description}</p>
                   <div className="flex gap-4 mt-2 text-sm text-gray-500">
                     {s.maxAmount && <span>上限 <strong className="text-navy">¥{Number(s.maxAmount).toLocaleString()}</strong></span>}
                     {s.subsidyRate && <span>補助率 <strong>{s.subsidyRate}</strong></span>}

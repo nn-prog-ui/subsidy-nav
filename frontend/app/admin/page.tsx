@@ -10,11 +10,32 @@ interface ConsultingItem { id: string; name: string; email: string; company: str
 interface SubsidyItem { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; createdAt: string; }
 interface AlertItem { id: string; email: string; prefectures: string[]; categories: string[]; verified: boolean; active: boolean; createdAt: string; }
 interface UserItem { id: string; email: string; name: string | null; emailVerified: boolean; provider: string; createdAt: string; _count: { favorites: number }; }
+interface Bucket { label: string; count: number; }
+interface AnalyticsData { total: number; byLevel: Bucket[]; byCategory: Bucket[]; byPrefecture: Bucket[]; amount: { avg: number; max: number; min: number }; deadlineSoon: number; }
 
 const CATEGORIES = ['IT・デジタル','設備投資','創業支援','雇用促進','環境・エネルギー','販路拡大','農業・林業','事業再構築','経営支援','地方創生','海外展開','伝統産業','各種補助金'];
 const PREFECTURES = ['全国','北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
-type Tab = 'stats' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'scrape';
+type Tab = 'stats' | 'analytics' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'scrape';
+
+function AdminBar({ data, color }: { data: Bucket[]; color: string }) {
+  const max = Math.max(...data.map(d => d.count), 1);
+  return (
+    <div className="space-y-2">
+      {data.map(d => (
+        <div key={d.label}>
+          <div className="flex justify-between text-xs mb-0.5">
+            <span className="text-gray-600">{d.label}</span>
+            <span className="text-gray-400">{d.count}</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${color}`} style={{ width: `${(d.count / max) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const [token, setToken] = useState('');
@@ -24,6 +45,7 @@ export default function AdminPage() {
   const [subsidies, setSubsidies] = useState<SubsidyItem[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [tab, setTab] = useState<Tab>('stats');
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
@@ -46,6 +68,7 @@ export default function AdminPage() {
     if (sub.status === 'fulfilled') setSubsidies(sub.value.data || []);
     if (al.status === 'fulfilled') setAlerts(al.value.data || []);
     if (us.status === 'fulfilled') setUsers(us.value.data || []);
+    fetch(`${API}/api/subsidies/analytics`).then(r => r.json()).then(j => setAnalytics(j.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -136,6 +159,7 @@ export default function AdminPage() {
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: 'stats', label: 'ダッシュボード' },
+    { key: 'analytics', label: '分析' },
     { key: 'subsidies', label: '補助金管理', count: subsidies.length },
     { key: 'consulting', label: '相談管理', count: consulting.filter(c => c.status === 'pending').length },
     { key: 'alerts', label: 'アラート', count: alerts.length },
@@ -207,6 +231,27 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Analytics Tab */}
+      {tab === 'analytics' && (
+        analytics ? (
+          <div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="card p-4 text-center"><div className="text-2xl font-bold text-navy">{analytics.total}</div><div className="text-xs text-gray-500 mt-1">掲載中</div></div>
+              <div className="card p-4 text-center bg-red-50"><div className="text-2xl font-bold text-red-600">{analytics.deadlineSoon}</div><div className="text-xs text-gray-500 mt-1">締切30日以内</div></div>
+              <div className="card p-4 text-center"><div className="text-lg font-bold text-navy">¥{Math.round(analytics.amount.avg).toLocaleString()}</div><div className="text-xs text-gray-500 mt-1">平均上限額</div></div>
+              <div className="card p-4 text-center"><div className="text-lg font-bold text-navy">¥{Math.round(analytics.amount.max).toLocaleString()}</div><div className="text-xs text-gray-500 mt-1">最高上限額</div></div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="card p-5"><h3 className="font-bold text-navy mb-3 text-sm">区分別</h3><AdminBar data={analytics.byLevel} color="bg-navy" /></div>
+              <div className="card p-5"><h3 className="font-bold text-navy mb-3 text-sm">カテゴリ別（上位10）</h3><AdminBar data={analytics.byCategory.slice(0, 10)} color="bg-accent" /></div>
+              <div className="card p-5 md:col-span-2"><h3 className="font-bold text-navy mb-3 text-sm">地域別（上位12）</h3><AdminBar data={analytics.byPrefecture} color="bg-navy-light" /></div>
+            </div>
+          </div>
+        ) : (
+          <div className="card p-12 text-center text-gray-400">分析データを読み込み中...</div>
+        )
       )}
 
       {/* Subsidies Tab */}

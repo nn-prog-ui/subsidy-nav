@@ -64,4 +64,47 @@ router.get('/check/:subsidyId', async (req: Request, res: Response) => {
   res.json({ isFavorite: !!fav });
 });
 
+// GET /api/favorites/recommendations — お気に入りの傾向から推薦（重み付けスコアリング）
+router.get('/recommendations', async (req: Request, res: Response) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const favorites = await prisma.favorite.findMany({ where: { userId } });
+  const favIds = favorites.map(f => f.subsidyId);
+  if (favIds.length === 0) return res.json({ data: [], basis: 'none' });
+
+  const favSubsidies = await prisma.subsidy.findMany({ where: { id: { in: favIds } } });
+  const catCount = new Map<string, number>();
+  const prefCount = new Map<string, number>();
+  for (const s of favSubsidies) {
+    catCount.set(s.category, (catCount.get(s.category) || 0) + 1);
+    if (s.prefecture && s.prefecture !== '全国') prefCount.set(s.prefecture, (prefCount.get(s.prefecture) || 0) + 1);
+  }
+  const cats = [...catCount.keys()];
+  const prefs = [...prefCount.keys()];
+
+  const candidates = await prisma.subsidy.findMany({
+    where: {
+      status: 'active',
+      id: { notIn: favIds },
+      OR: [
+        ...(cats.length ? [{ category: { in: cats } }] : []),
+        ...(prefs.length ? [{ prefecture: { in: prefs } }] : []),
+      ],
+    },
+    take: 50,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // カテゴリ一致(重み2×頻度) + 都道府県一致(重み1×頻度) でスコアリング
+  const scored = candidates.map(s => {
+    const score = 2 * (catCount.get(s.category) || 0) + 1 * (prefCount.get(s.prefecture) || 0);
+    return { subsidy: s, score };
+  }).filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score || b.subsidy.createdAt.getTime() - a.subsidy.createdAt.getTime())
+    .slice(0, 6);
+
+  res.json({ data: scored.map(x => x.subsidy), basis: 'favorites' });
+});
+
 export default router;

@@ -9,13 +9,23 @@ interface FavoriteItem {
   subsidy: { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; } | null;
 }
 
+interface Reco { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; }
+
 const LEVEL_COLORS: Record<string, string> = { '国': 'bg-red-100 text-red-700', '都道府県': 'bg-blue-100 text-blue-700', '市区町村': 'bg-green-100 text-green-700' };
 
 export default function MyPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [recos, setRecos] = useState<Reco[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const loadRecos = () => {
+    fetch(`${API}/api/favorites/recommendations`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(j => setRecos(j.data || []))
+      .catch(() => setRecos([]));
+  };
 
   useEffect(() => {
     fetchMe().then(u => {
@@ -26,12 +36,14 @@ export default function MyPage() {
         .then(j => setFavorites(j.data || []))
         .catch(() => {})
         .finally(() => setLoading(false));
+      loadRecos();
     });
   }, [router]);
 
   const removeFavorite = async (subsidyId: string) => {
     await fetch(`${API}/api/favorites/${subsidyId}`, { method: 'DELETE', headers: authHeaders() });
     setFavorites(prev => prev.filter(f => f.subsidyId !== subsidyId));
+    loadRecos();
   };
 
   const logout = () => { clearToken(); router.push('/'); };
@@ -112,6 +124,28 @@ export default function MyPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Favorites-based recommendations */}
+      {recos.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xl font-bold text-navy mb-1">お気に入りに基づくおすすめ</h2>
+          <p className="text-sm text-gray-500 mb-4">よく見ているカテゴリ・地域から関連する補助金を提案します</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recos.map(s => (
+              <Link key={s.id} href={`/subsidies/${s.id}`} className="card p-4 group block">
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <span className={`badge text-xs ${LEVEL_COLORS[s.level] || 'bg-gray-100 text-gray-700'}`}>{s.level}</span>
+                  <span className="badge text-xs bg-orange-100 text-orange-700">{s.category}</span>
+                </div>
+                <h3 className="font-bold text-navy text-sm group-hover:text-navy-light leading-tight mb-1 line-clamp-2">{s.title}</h3>
+                {s.maxAmount ? (
+                  <p className="text-xs text-gray-500">上限 <span className="font-semibold text-navy">¥{Number(s.maxAmount).toLocaleString()}</span></p>
+                ) : <p className="text-xs text-gray-400">上限なし</p>}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
     </div>

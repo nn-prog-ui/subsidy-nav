@@ -55,8 +55,41 @@ export default async function SubsidyDetailPage({ params }: { params: Promise<{ 
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('ja-JP') : '－';
   const money = (n: number | null) => n ? `¥${Number(n).toLocaleString()}` : '上限なし';
 
+  // schema.org 構造化データ（GovernmentService として表現）
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'GovernmentService',
+    name: subsidy.title,
+    description: subsidy.description.slice(0, 300),
+    serviceType: subsidy.category,
+    url: `${BASE_URL}/subsidies/${subsidy.id}`,
+    areaServed: { '@type': 'AdministrativeArea', name: subsidy.prefecture },
+    provider: {
+      '@type': 'GovernmentOrganization',
+      name: subsidy.municipalityName || subsidy.prefecture || '日本',
+    },
+    ...(subsidy.applicationUrl ? {
+      availableChannel: { '@type': 'ServiceChannel', serviceUrl: subsidy.applicationUrl },
+    } : {}),
+    ...(subsidy.maxAmount ? {
+      offers: { '@type': 'Offer', priceCurrency: 'JPY', price: Number(subsidy.maxAmount) },
+    } : {}),
+  };
+
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'ホーム', item: BASE_URL },
+      { '@type': 'ListItem', position: 2, name: '補助金一覧', item: `${BASE_URL}/subsidies` },
+      { '@type': 'ListItem', position: 3, name: subsidy.title, item: `${BASE_URL}/subsidies/${subsidy.id}` },
+    ],
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <RecordView id={subsidy.id} title={subsidy.title} category={subsidy.category}
         prefecture={subsidy.prefecture} level={subsidy.level} maxAmount={subsidy.maxAmount} />
       <Link href="/subsidies" className="text-navy hover:underline text-sm mb-6 block">← 補助金一覧に戻る</Link>

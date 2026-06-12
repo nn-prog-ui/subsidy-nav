@@ -54,6 +54,32 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: '補助金ナビ',
+              url: BASE_URL,
+              description: '国・都道府県・市区町村の補助金・助成金を一元検索。',
+              inLanguage: 'ja',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: { '@type': 'EntryPoint', urlTemplate: `${BASE_URL}/subsidies?keyword={search_term_string}` },
+                'query-input': 'required name=search_term_string',
+              },
+              publisher: {
+                '@type': 'Organization',
+                name: '補助金ナビ',
+                url: BASE_URL,
+                logo: `${BASE_URL}/icon.svg`,
+              },
+            }),
+          }}
+        />
+      </head>
       <body>
         <ServiceWorkerRegister />
         <Toaster />
