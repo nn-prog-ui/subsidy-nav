@@ -6,6 +6,7 @@ import { parse as csvParse } from 'csv-parse/sync';
 import { requireAdmin } from '../middleware/auth';
 import { runScrape } from '../services/scraper';
 import { sendAnalyticsReport } from '../services/email';
+import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/maintenance';
 import { invalidateCache } from '../middleware/cache';
 
 const router = Router();
@@ -41,6 +42,12 @@ router.post('/scrape', requireAdmin, async (_req: Request, res: Response) => {
 router.post('/report/send', requireAdmin, async (_req: Request, res: Response) => {
   res.json({ message: '週次分析レポートを送信しました（ADMIN_EMAIL宛）' });
   sendAnalyticsReport().catch(console.error);
+});
+
+router.post('/subsidies/refresh-status', requireAdmin, async (_req: Request, res: Response) => {
+  const closed = await closeExpiredSubsidies();
+  const activated = await activateUpcomingSubsidies();
+  res.json({ message: `ステータスを更新しました（締切→closed: ${closed}件 / 開始→active: ${activated}件）`, closed, activated });
 });
 
 router.get('/consulting', requireAdmin, async (_req: Request, res: Response) => {

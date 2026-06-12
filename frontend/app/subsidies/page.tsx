@@ -19,7 +19,6 @@ interface Subsidy {
 
 function SubsidiesContent() {
   const sp = useSearchParams();
-  const router = useRouter();
   const [subsidies, setSubsidies] = useState<Subsidy[]>([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(false);
@@ -28,6 +27,10 @@ function SubsidiesContent() {
     category: sp.get('category') || '',
     level: '',
     keyword: sp.get('keyword') || '',
+    amountMin: '',
+    amountMax: '',
+    closingSoon: false,
+    sort: 'newest',
     page: 1,
   });
 
@@ -38,6 +41,10 @@ function SubsidiesContent() {
     if (filters.category) params.set('category', filters.category);
     if (filters.level) params.set('level', filters.level);
     if (filters.keyword) params.set('keyword', filters.keyword);
+    if (filters.amountMin) params.set('amountMin', filters.amountMin);
+    if (filters.amountMax) params.set('amountMax', filters.amountMax);
+    if (filters.closingSoon) params.set('closingSoon', 'true');
+    if (filters.sort && filters.sort !== 'newest') params.set('sort', filters.sort);
     params.set('page', String(filters.page));
     params.set('limit', '15');
     try {
@@ -92,7 +99,23 @@ function SubsidiesContent() {
                 {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
-            <button onClick={() => setFilters({ prefecture: '', category: '', level: '', keyword: '', page: 1 })}
+            <div>
+              <label className="label">補助上限額（円）</label>
+              <div className="flex items-center gap-2">
+                <input type="number" min="0" className="input" placeholder="下限" value={filters.amountMin}
+                  onChange={e => update('amountMin', e.target.value)} />
+                <span className="text-gray-400">〜</span>
+                <input type="number" min="0" className="input" placeholder="上限" value={filters.amountMax}
+                  onChange={e => update('amountMax', e.target.value)} />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={filters.closingSoon}
+                onChange={e => setFilters(f => ({ ...f, closingSoon: e.target.checked, page: 1 }))}
+                className="rounded border-gray-300" />
+              締切30日以内のみ
+            </label>
+            <button onClick={() => setFilters({ prefecture: '', category: '', level: '', keyword: '', amountMin: '', amountMax: '', closingSoon: false, sort: 'newest', page: 1 })}
               className="w-full text-sm text-gray-500 hover:text-gray-700 underline text-left">
               フィルターをリセット
             </button>
@@ -101,6 +124,19 @@ function SubsidiesContent() {
 
         {/* List */}
         <div className="lg:col-span-3">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-gray-500">{meta.total}件中 {subsidies.length}件を表示</p>
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-gray-500">並び替え</span>
+              <select className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40"
+                value={filters.sort} onChange={e => update('sort', e.target.value)}>
+                <option value="newest">新着順</option>
+                <option value="amount_desc">補助額が高い順</option>
+                <option value="amount_asc">補助額が低い順</option>
+                <option value="deadline">締切が近い順</option>
+              </select>
+            </label>
+          </div>
           {loading ? (
             <div className="text-center py-16 text-gray-400">読み込み中...</div>
           ) : subsidies.length === 0 ? (

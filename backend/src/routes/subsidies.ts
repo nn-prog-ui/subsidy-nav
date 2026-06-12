@@ -8,10 +8,16 @@ const router = Router();
 const prisma = new PrismaClient();
 
 router.get('/', async (req: Request, res: Response) => {
-  const { prefecture, category, level, keyword, targetType, page = '1', limit = '20' } = req.query as Record<string, string>;
+  const { prefecture, category, level, keyword, targetType, amountMin, amountMax, sort, closingSoon, page = '1', limit = '20' } = req.query as Record<string, string>;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const pageNum = parseInt(page);
   const limitNum = parseInt(limit);
+
+  const orderBy: Prisma.SubsidyOrderByWithRelationInput =
+    sort === 'amount_desc' ? { maxAmount: 'desc' } :
+    sort === 'amount_asc' ? { maxAmount: 'asc' } :
+    sort === 'deadline' ? { applicationEnd: 'asc' } :
+    { createdAt: 'desc' };
 
   // Full-text search via raw SQL when keyword provided
   if (keyword && keyword.trim()) {
@@ -27,6 +33,9 @@ router.get('/', async (req: Request, res: Response) => {
     if (category) { conditions.push(`category = $${pi}`); params.push(category); pi++; }
     if (level) { conditions.push(`level = $${pi}`); params.push(level); pi++; }
     if (targetType) { conditions.push(`"targetType" ILIKE $${pi}`); params.push(`%${targetType}%`); pi++; }
+    if (amountMin) { conditions.push(`"maxAmount" >= $${pi}`); params.push(Number(amountMin)); pi++; }
+    if (amountMax) { conditions.push(`"maxAmount" <= $${pi}`); params.push(Number(amountMax)); pi++; }
+    if (closingSoon === 'true') { conditions.push(`"applicationEnd" >= NOW() AND "applicationEnd" <= NOW() + INTERVAL '30 days'`); }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const ftsWhere = conditions.length
@@ -64,9 +73,20 @@ router.get('/', async (req: Request, res: Response) => {
     { description: { contains: keyword, mode: 'insensitive' } },
   ];
 
+  // 金額レンジ（補助上限額でフィルタ）
+  if (amountMin || amountMax) {
+    where.maxAmount = {};
+    if (amountMin) (where.maxAmount as any).gte = BigInt(amountMin);
+    if (amountMax) (where.maxAmount as any).lte = BigInt(amountMax);
+  }
+  // 締切30日以内
+  if (closingSoon === 'true') {
+    where.applicationEnd = { gte: new Date(), lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) };
+  }
+
   const [total, data] = await Promise.all([
     prisma.subsidy.count({ where }),
-    prisma.subsidy.findMany({ where, skip, take: limitNum, orderBy: { createdAt: 'desc' } }),
+    prisma.subsidy.findMany({ where, skip, take: limitNum, orderBy }),
   ]);
   res.json({ data, meta: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) } });
 });

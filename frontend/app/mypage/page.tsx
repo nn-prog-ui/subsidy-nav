@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { API, AuthUser, fetchMe, authHeaders, clearToken } from '../../lib/auth';
+import { toast } from '../Toaster';
 
 interface FavoriteItem {
   id: string; subsidyId: string; note: string | null; createdAt: string;
@@ -10,6 +11,43 @@ interface FavoriteItem {
 }
 
 interface Reco { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; }
+
+function FavoriteNoteEditor({ subsidyId, initialNote, onSave }: { subsidyId: string; initialNote: string | null; onSave: (id: string, note: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(initialNote || '');
+  const [saving, setSaving] = useState(false);
+
+  if (!editing) {
+    return initialNote ? (
+      <p className="text-xs text-gray-500 mt-2 italic">
+        メモ: {initialNote}
+        <button onClick={() => { setValue(initialNote); setEditing(true); }} className="ml-2 not-italic text-navy hover:underline">編集</button>
+      </p>
+    ) : (
+      <button onClick={() => setEditing(true)} className="text-xs text-navy hover:underline mt-2">＋ メモを追加</button>
+    );
+  }
+
+  return (
+    <div className="mt-2">
+      <textarea
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        rows={2}
+        maxLength={500}
+        placeholder="申請メモ・締切のリマインドなど"
+        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-navy/40"
+      />
+      <div className="flex gap-2 mt-1">
+        <button
+          disabled={saving}
+          onClick={async () => { setSaving(true); await onSave(subsidyId, value.trim()); setSaving(false); setEditing(false); }}
+          className="text-xs bg-navy text-white px-3 py-1 rounded hover:bg-navy-light disabled:opacity-60">保存</button>
+        <button onClick={() => { setEditing(false); setValue(initialNote || ''); }} className="text-xs text-gray-400 hover:text-gray-600 px-2">キャンセル</button>
+      </div>
+    </div>
+  );
+}
 
 const LEVEL_COLORS: Record<string, string> = { '国': 'bg-red-100 text-red-700', '都道府県': 'bg-blue-100 text-blue-700', '市区町村': 'bg-green-100 text-green-700' };
 
@@ -44,6 +82,18 @@ export default function MyPage() {
     await fetch(`${API}/api/favorites/${subsidyId}`, { method: 'DELETE', headers: authHeaders() });
     setFavorites(prev => prev.filter(f => f.subsidyId !== subsidyId));
     loadRecos();
+  };
+
+  const saveNote = async (subsidyId: string, note: string) => {
+    const res = await fetch(`${API}/api/favorites`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ subsidyId, note }),
+    });
+    if (res.ok) {
+      setFavorites(prev => prev.map(f => f.subsidyId === subsidyId ? { ...f, note: note || null } : f));
+      toast('メモを保存しました', 'success');
+    } else {
+      toast('メモの保存に失敗しました', 'error');
+    }
   };
 
   const logout = () => { clearToken(); router.push('/'); };
@@ -115,7 +165,7 @@ export default function MyPage() {
                     {f.subsidy.maxAmount && (
                       <p className="text-sm text-gray-500 mt-1">上限 ¥{Number(f.subsidy.maxAmount).toLocaleString()}</p>
                     )}
-                    {f.note && <p className="text-xs text-gray-400 mt-1 italic">メモ: {f.note}</p>}
+                    <FavoriteNoteEditor subsidyId={f.subsidyId} initialNote={f.note} onSave={saveNote} />
                   </div>
                   <button onClick={() => removeFavorite(f.subsidyId)} className="text-gray-300 hover:text-red-400 text-lg flex-shrink-0" title="お気に入りを解除">★</button>
                 </div>
