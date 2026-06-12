@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import FavoriteButton from './FavoriteButton';
+import RecordView from './RecordView';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
@@ -56,6 +57,8 @@ export default async function SubsidyDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      <RecordView id={subsidy.id} title={subsidy.title} category={subsidy.category}
+        prefecture={subsidy.prefecture} level={subsidy.level} maxAmount={subsidy.maxAmount} />
       <Link href="/subsidies" className="text-navy hover:underline text-sm mb-6 block">← 補助金一覧に戻る</Link>
 
       <div className="card p-8">

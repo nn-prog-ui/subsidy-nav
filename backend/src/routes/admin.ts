@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { parse as csvParse } from 'csv-parse/sync';
 import { requireAdmin } from '../middleware/auth';
 import { runScrape } from '../services/scraper';
+import { sendAnalyticsReport } from '../services/email';
 import { invalidateCache } from '../middleware/cache';
 
 const router = Router();
@@ -35,6 +36,11 @@ router.get('/stats', requireAdmin, async (_req: Request, res: Response) => {
 router.post('/scrape', requireAdmin, async (_req: Request, res: Response) => {
   res.json({ message: 'スクレイピングを開始しました' });
   runScrape().catch(console.error);
+});
+
+router.post('/report/send', requireAdmin, async (_req: Request, res: Response) => {
+  res.json({ message: '週次分析レポートを送信しました（ADMIN_EMAIL宛）' });
+  sendAnalyticsReport().catch(console.error);
 });
 
 router.get('/consulting', requireAdmin, async (_req: Request, res: Response) => {

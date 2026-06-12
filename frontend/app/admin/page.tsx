@@ -73,6 +73,13 @@ export default function AdminPage() {
     setTimeout(() => setScrapeMsg(''), 6000);
   };
 
+  const triggerReport = async () => {
+    const res = await fetch(`${API}/api/admin/report/send`, { method: 'POST', headers: headers() });
+    const json = await res.json();
+    setScrapeMsg(json.message);
+    setTimeout(() => setScrapeMsg(''), 6000);
+  };
+
   const updateConsultingStatus = async (id: string, status: string) => {
     await fetch(`${API}/api/admin/consulting/${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status }) });
     setConsulting(prev => prev.map(c => c.id === id ? { ...c, status } : c));
@@ -406,9 +413,12 @@ export default function AdminPage() {
       {tab === 'scrape' && (
         <div className="grid md:grid-cols-2 gap-6">
           <div className="card p-6">
-            <h2 className="font-bold text-navy text-lg mb-3">手動スクレイピング</h2>
+            <h2 className="font-bold text-navy text-lg mb-3">手動実行</h2>
             <p className="text-gray-600 text-sm mb-4">54の自治体サイトから補助金情報を取得します。完了まで数分かかります。</p>
-            <button onClick={triggerScrape} className="btn-primary">🔄 スクレイピングを開始</button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={triggerScrape} className="btn-primary">🔄 スクレイピングを開始</button>
+              <button onClick={triggerReport} className="btn-outline">📊 分析レポートを送信</button>
+            </div>
             {scrapeMsg && <p className="mt-3 text-green-600 font-medium text-sm">{scrapeMsg}</p>}
           </div>
           <div className="card p-6 bg-gray-50">
@@ -417,6 +427,7 @@ export default function AdminPage() {
               {[
                 { time: '毎週月曜 AM2:00 JST', desc: '全54自治体の自動スクレイピング', color: 'bg-blue-100 text-blue-700' },
                 { time: '毎週月曜 AM8:00 JST', desc: '週次ダイジェストメール（ADMIN_EMAIL宛）', color: 'bg-green-100 text-green-700' },
+                { time: '毎週月曜 AM8:10 JST', desc: '週次分析レポートメール（ADMIN_EMAIL宛）', color: 'bg-teal-100 text-teal-700' },
                 { time: '毎日 AM9:00 JST', desc: '締切3日前アラートメール（登録ユーザー宛）', color: 'bg-orange-100 text-orange-700' },
               ].map(s => (
                 <div key={s.time} className="flex gap-3 items-start">

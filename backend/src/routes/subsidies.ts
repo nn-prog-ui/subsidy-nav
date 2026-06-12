@@ -107,6 +107,49 @@ router.get('/analytics', cacheMiddleware(600), async (_req: Request, res: Respon
   });
 });
 
+// 閲覧履歴ベースのレコメンド（カテゴリ・都道府県の嗜好から推薦）
+router.get('/reco/personalized', async (req: Request, res: Response) => {
+  const { categories, prefectures, exclude, limit = '6' } = req.query as Record<string, string>;
+  const cats = categories ? categories.split(',').filter(Boolean) : [];
+  const prefs = prefectures ? prefectures.split(',').filter(Boolean) : [];
+  const excludeIds = exclude ? exclude.split(',').filter(Boolean) : [];
+  const take = Math.min(parseInt(limit) || 6, 20);
+
+  // 嗜好が無い場合は新着を返す
+  if (cats.length === 0 && prefs.length === 0) {
+    const data = await prisma.subsidy.findMany({
+      where: { status: 'active', id: { notIn: excludeIds.length ? excludeIds : undefined } },
+      take, orderBy: { createdAt: 'desc' },
+    });
+    return res.json({ data, basis: 'recent' });
+  }
+
+  const orConditions: any[] = [];
+  if (cats.length) orConditions.push({ category: { in: cats } });
+  if (prefs.length) orConditions.push({ prefecture: { in: prefs } });
+
+  const data = await prisma.subsidy.findMany({
+    where: {
+      status: 'active',
+      id: excludeIds.length ? { notIn: excludeIds } : undefined,
+      OR: orConditions,
+    },
+    take, orderBy: { createdAt: 'desc' },
+  });
+
+  // 件数が足りなければ新着で補完
+  if (data.length < take) {
+    const fillIds = [...excludeIds, ...data.map(d => d.id)];
+    const fill = await prisma.subsidy.findMany({
+      where: { status: 'active', id: { notIn: fillIds } },
+      take: take - data.length, orderBy: { createdAt: 'desc' },
+    });
+    data.push(...fill);
+  }
+
+  res.json({ data, basis: 'personalized' });
+});
+
 router.get('/:id', async (req: Request, res: Response) => {
   const data = await prisma.subsidy.findUnique({ where: { id: req.params.id } });
   if (!data) return res.status(404).json({ error: 'Not found' });

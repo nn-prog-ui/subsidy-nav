@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Recommendations from './Recommendations';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -138,6 +139,9 @@ export default async function Home() {
           </div>
         </section>
       )}
+
+      {/* Personalized recommendations + history (client-side) */}
+      <Recommendations />
 
       {/* Features */}
       <section className="py-16 px-4 bg-gray-50">

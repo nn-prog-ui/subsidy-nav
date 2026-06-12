@@ -95,6 +95,61 @@ export async function sendWeeklyDigest() {
   console.log(`Weekly digest sent to ${adminEmail}`);
 }
 
+export async function sendAnalyticsReport() {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) return;
+
+  const where = { status: 'active' as const };
+  const [total, byLevel, byCategory, amountStats, deadlineSoon, newCount] = await Promise.all([
+    prisma.subsidy.count({ where }),
+    prisma.subsidy.groupBy({ by: ['level'], where, _count: { id: true } }),
+    prisma.subsidy.groupBy({ by: ['category'], where, _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 5 }),
+    prisma.subsidy.aggregate({ where: { ...where, maxAmount: { not: null } }, _avg: { maxAmount: true }, _max: { maxAmount: true } }),
+    prisma.subsidy.count({ where: { ...where, applicationEnd: { gte: new Date(), lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } } }),
+    prisma.subsidy.count({ where: { ...where, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
+  ]);
+
+  const yen = (n: number | null) => n ? `¥${Math.round(Number(n)).toLocaleString()}` : '－';
+  const levelRows = byLevel.map(l => `<li>${l.level}: <strong>${l._count.id}件</strong></li>`).join('');
+  const catRows = byCategory.map(c => `
+    <tr><td style="padding:6px 10px;border-bottom:1px solid #eee">${c.category}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right"><strong>${c._count.id}</strong></td></tr>`).join('');
+
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
+    to: adminEmail,
+    subject: `【補助金ナビ】週次分析レポート（${new Date().toLocaleDateString('ja-JP')}）`,
+    html: `
+      <div style="font-family:sans-serif;max-width:700px;margin:0 auto">
+        <h2 style="color:#1e3a5f">📊 週次分析レポート</h2>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin:16px 0">
+          <div style="flex:1;min-width:120px;background:#f0f4f8;padding:14px;border-radius:8px;text-align:center">
+            <div style="font-size:24px;font-weight:bold;color:#1e3a5f">${total}</div>
+            <div style="font-size:12px;color:#666">掲載中の補助金</div>
+          </div>
+          <div style="flex:1;min-width:120px;background:#fef2f2;padding:14px;border-radius:8px;text-align:center">
+            <div style="font-size:24px;font-weight:bold;color:#c0392b">${deadlineSoon}</div>
+            <div style="font-size:12px;color:#666">締切30日以内</div>
+          </div>
+          <div style="flex:1;min-width:120px;background:#f0fdf4;padding:14px;border-radius:8px;text-align:center">
+            <div style="font-size:24px;font-weight:bold;color:#16a34a">+${newCount}</div>
+            <div style="font-size:12px;color:#666">今週の新着</div>
+          </div>
+        </div>
+        <h3 style="color:#1e3a5f;margin-top:24px">区分別</h3>
+        <ul>${levelRows}</ul>
+        <h3 style="color:#1e3a5f;margin-top:16px">カテゴリ上位5</h3>
+        <table style="width:100%;border-collapse:collapse">${catRows}</table>
+        <h3 style="color:#1e3a5f;margin-top:16px">補助額</h3>
+        <p>平均上限: <strong>${yen(amountStats._avg.maxAmount)}</strong> ／ 最高上限: <strong>${yen(amountStats._max.maxAmount)}</strong></p>
+        <p style="color:#999;font-size:12px;margin-top:24px">補助金ナビ 自動送信レポート</p>
+      </div>
+    `,
+  }).catch(err => console.error('Analytics report error:', err.message));
+  console.log(`Analytics report sent to ${adminEmail}`);
+}
+
 export async function sendDeadlineAlerts() {
   const threeDaysLater = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
   const expiring = await prisma.subsidy.findMany({

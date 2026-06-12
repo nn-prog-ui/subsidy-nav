@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { runScrape } from './scraper';
-import { sendWeeklyDigest, sendDeadlineAlerts } from './email';
+import { sendWeeklyDigest, sendDeadlineAlerts, sendAnalyticsReport } from './email';
 import { notifyScrapeComplete, notifyDeadlineSoon } from './notify';
 import { PrismaClient } from '@prisma/client';
 
@@ -23,6 +23,12 @@ export function startScheduler() {
     await sendWeeklyDigest().catch(console.error);
   }, { timezone: 'Asia/Tokyo' });
 
+  // 毎週月曜 AM8:10 JST 週次分析レポート（管理者向け）
+  cron.schedule('10 8 * * 1', async () => {
+    console.log('[Scheduler] Sending analytics report...');
+    await sendAnalyticsReport().catch(console.error);
+  }, { timezone: 'Asia/Tokyo' });
+
   // 毎日 AM9:00 JST 締切アラート + LINE通知
   cron.schedule('0 9 * * *', async () => {
     console.log('[Scheduler] Sending deadline alerts...');
@@ -37,5 +43,5 @@ export function startScheduler() {
     }
   }, { timezone: 'Asia/Tokyo' });
 
-  console.log('[Scheduler] Jobs scheduled: scrape(Mon 2am), digest(Mon 8am), deadline-alerts(daily 9am)');
+  console.log('[Scheduler] Jobs scheduled: scrape(Mon 2am), digest(Mon 8am), analytics-report(Mon 8:10am), deadline-alerts(daily 9am)');
 }
