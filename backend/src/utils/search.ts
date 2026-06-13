@@ -7,7 +7,7 @@ export function buildTsQuery(keyword: string): string {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map(w => w.replace(/[&|!:*()'\\]/g, '')) // tsquery 特殊文字を除去
+    .map(w => w.replace(/[^\p{L}\p{N}]/gu, '')) // 文字・数字以外を除去（tsquery演算子/記号対策）
     .filter(Boolean)
     .map(w => `${w}:*`)
     .join(' & ');
