@@ -72,8 +72,28 @@ router.get('/me', async (req: Request, res: Response) => {
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   try {
     const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { id: string };
-    const user = await prisma.user.findUnique({ where: { id: payload.id }, select: { id: true, email: true, name: true, emailVerified: true, createdAt: true } });
+    const user = await prisma.user.findUnique({ where: { id: payload.id }, select: { id: true, email: true, name: true, emailVerified: true, notifyProgress: true, createdAt: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ data: user });
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// PATCH /api/auth/me — プロフィール・通知設定の更新
+router.patch('/me', async (req: Request, res: Response) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { id: string };
+    const { name, notifyProgress } = req.body;
+    const data: { name?: string; notifyProgress?: boolean } = {};
+    if (typeof name === 'string') data.name = name.slice(0, 50);
+    if (typeof notifyProgress === 'boolean') data.notifyProgress = notifyProgress;
+    const user = await prisma.user.update({
+      where: { id: payload.id }, data,
+      select: { id: true, email: true, name: true, emailVerified: true, notifyProgress: true, createdAt: true },
+    });
     res.json({ data: user });
   } catch {
     res.status(401).json({ error: 'Invalid token' });

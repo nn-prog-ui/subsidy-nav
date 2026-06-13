@@ -1,7 +1,7 @@
 export const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export interface AuthUser {
-  id: string; email: string; name: string | null; emailVerified: boolean;
+  id: string; email: string; name: string | null; emailVerified: boolean; notifyProgress?: boolean;
 }
 
 export function getToken(): string | null {

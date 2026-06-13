@@ -22,6 +22,14 @@ router.get('/verify/:token', async (req: Request, res: Response) => {
   res.json({ message: 'アラートが有効化されました' });
 });
 
+// ワンクリック配信停止（メール内リンク用、tokenで認証）
+router.get('/unsubscribe/:token', async (req: Request, res: Response) => {
+  const alert = await prisma.alert.findUnique({ where: { token: req.params.token } });
+  if (!alert) return res.status(404).json({ error: 'Invalid token' });
+  await prisma.alert.update({ where: { id: alert.id }, data: { active: false } });
+  res.json({ message: 'メール配信を停止しました', email: alert.email });
+});
+
 router.delete('/:id', async (req: Request, res: Response) => {
   await prisma.alert.update({ where: { id: req.params.id }, data: { active: false } });
   res.json({ message: '解除しました' });

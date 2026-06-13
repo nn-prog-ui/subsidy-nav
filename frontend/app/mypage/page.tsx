@@ -114,6 +114,17 @@ export default function MyPage() {
     toast('共有を停止しました', 'success');
   };
 
+  const toggleNotify = async (value: boolean) => {
+    const res = await fetch(`${API}/api/auth/me`, {
+      method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ notifyProgress: value }),
+    });
+    if (res.ok) {
+      const j = await res.json();
+      setUser(u => u ? { ...u, notifyProgress: j.data.notifyProgress } : u);
+      toast(value ? 'リマインドをオンにしました' : 'リマインドをオフにしました', 'success');
+    }
+  };
+
   const shareUrl = shareToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/collections/${shareToken}` : '';
 
   const removeFavorite = async (subsidyId: string) => {
@@ -240,6 +251,20 @@ export default function MyPage() {
           ))}
         </div>
       )}
+
+      {/* 通知設定 */}
+      <div className="mt-8 card p-5">
+        <h2 className="text-lg font-bold text-navy mb-1">通知設定</h2>
+        <label className="flex items-center justify-between gap-3 mt-2">
+          <span className="text-sm text-gray-700">申請準備中の補助金の締切リマインドをメールで受け取る</span>
+          <input
+            type="checkbox"
+            checked={user?.notifyProgress !== false}
+            onChange={e => toggleNotify(e.target.checked)}
+            className="w-5 h-5 rounded border-gray-300 accent-navy"
+          />
+        </label>
+      </div>
 
       {/* 共有コレクション */}
       <div className="mt-8 card p-5">

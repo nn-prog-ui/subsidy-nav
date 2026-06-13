@@ -48,6 +48,40 @@ export async function sendConsultingConfirmation(name: string, email: string) {
   }).catch(err => console.error('Mail error:', err.message));
 }
 
+export async function sendConsultingAdminNotification(req: {
+  name: string; email: string; company?: string | null; phone?: string | null;
+  prefecture?: string | null; industry?: string | null; employees?: string | null; budget?: string | null; message: string;
+}) {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) return;
+  const transporter = createTransporter();
+  const field = (label: string, v: string | null | undefined) => v ? `<tr><td style="padding:4px 10px;color:#666">${label}</td><td style="padding:4px 10px"><strong>${v}</strong></td></tr>` : '';
+  await transporter.sendMail({
+    from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
+    to: adminEmail,
+    replyTo: req.email,
+    subject: `【新規相談】${req.name} 様（${req.company || '個人'}）`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#1e3a5f">新しい相談が届きました</h2>
+        <table style="width:100%;border-collapse:collapse">
+          ${field('お名前', req.name)}
+          ${field('メール', req.email)}
+          ${field('会社名', req.company)}
+          ${field('電話', req.phone)}
+          ${field('地域', req.prefecture)}
+          ${field('業種', req.industry)}
+          ${field('従業員数', req.employees)}
+          ${field('予算', req.budget)}
+        </table>
+        <h3 style="color:#1e3a5f;margin-top:16px">相談内容</h3>
+        <p style="white-space:pre-line;background:#f7f7f7;padding:12px;border-radius:8px">${req.message}</p>
+        <p style="color:#999;font-size:12px;margin-top:16px">このメールに返信すると相談者へ直接返信できます。</p>
+      </div>
+    `,
+  }).catch(err => console.error('Admin notify error:', err.message));
+}
+
 export async function sendWeeklyDigest() {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail) return;
@@ -99,7 +133,7 @@ export async function sendProgressDeadlineReminders() {
   // 申請完了前（considering/preparing）の進捗があり、締切が7日以内の補助金についてユーザーへ通知
   const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const progresses = await prisma.applicationProgress.findMany({
-    where: { status: { in: ['considering', 'preparing'] } },
+    where: { status: { in: ['considering', 'preparing'] }, user: { notifyProgress: true } },
     include: { user: { select: { email: true, emailVerified: true } } },
   });
   if (progresses.length === 0) return;
@@ -218,11 +252,15 @@ export async function sendDeadlineAlerts() {
 
     const transporter = createTransporter();
     const rows = matched.map(s => `<li><strong>${s.title}</strong>（${s.prefecture}）- 締切: ${s.applicationEnd?.toLocaleDateString('ja-JP')}</li>`).join('');
+    const unsubscribeUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/alerts/unsubscribe?token=${alert.token}`;
     await transporter.sendMail({
       from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
       to: alert.email,
       subject: '【補助金ナビ】申請締切が近い補助金があります',
-      html: `<div style="font-family:sans-serif"><h2 style="color:#c0392b">締切アラート</h2><ul>${rows}</ul></div>`,
+      html: `<div style="font-family:sans-serif"><h2 style="color:#c0392b">締切アラート</h2><ul>${rows}</ul>
+        <p style="color:#999;font-size:12px;margin-top:24px;border-top:1px solid #eee;padding-top:12px">
+          配信を停止する場合は<a href="${unsubscribeUrl}" style="color:#999">こちら</a>。
+        </p></div>`,
     }).catch(err => console.error('Deadline alert error:', err.message));
   }
 }
