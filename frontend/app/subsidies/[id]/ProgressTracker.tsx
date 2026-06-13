@@ -14,6 +14,8 @@ const STATUSES: { value: string; label: string; color: string }[] = [
 export default function ProgressTracker({ subsidyId }: { subsidyId: string }) {
   const [hasToken, setHasToken] = useState(false);
   const [current, setCurrent] = useState<string | null>(null);
+  const [memo, setMemo] = useState('');
+  const [memoSaved, setMemoSaved] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function ProgressTracker({ subsidyId }: { subsidyId: string }) {
     if (!token) return;
     fetch(`${API}/api/progress/${subsidyId}`, { headers: authHeaders() })
       .then(r => r.json())
-      .then(j => setCurrent(j.data?.status || null))
+      .then(j => { setCurrent(j.data?.status || null); setMemo(j.data?.memo || ''); setMemoSaved(j.data?.memo || ''); })
       .catch(() => {});
   }, [subsidyId]);
 
@@ -33,7 +35,7 @@ export default function ProgressTracker({ subsidyId }: { subsidyId: string }) {
       // 同じステータスを再選択したら解除
       if (current === status) {
         await fetch(`${API}/api/progress/${subsidyId}`, { method: 'DELETE', headers: authHeaders() });
-        setCurrent(null);
+        setCurrent(null); setMemo(''); setMemoSaved('');
         toast('進捗をリセットしました', 'success');
       } else {
         const res = await fetch(`${API}/api/progress/${subsidyId}`, {
@@ -45,6 +47,24 @@ export default function ProgressTracker({ subsidyId }: { subsidyId: string }) {
       }
     } catch {
       toast('更新に失敗しました', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveMemo = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/progress/${subsidyId}`, {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ status: current || 'considering', memo: memo.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      if (!current) setCurrent('considering');
+      setMemoSaved(memo.trim());
+      toast('メモを保存しました', 'success');
+    } catch {
+      toast('メモの保存に失敗しました', 'error');
     } finally {
       setLoading(false);
     }
@@ -67,6 +87,25 @@ export default function ProgressTracker({ subsidyId }: { subsidyId: string }) {
           </button>
         ))}
       </div>
+
+      {hasToken && (
+        <div className="mt-4">
+          <label className="label">メモ（申請の進捗・締切の備忘など）</label>
+          <textarea
+            value={memo}
+            onChange={e => setMemo(e.target.value)}
+            rows={2}
+            maxLength={500}
+            placeholder="例：4月末までに見積書を取得。商工会に相談予約済み。"
+            className="input"
+          />
+          {memo.trim() !== memoSaved && (
+            <button onClick={saveMemo} disabled={loading} className="mt-2 text-sm bg-navy text-white px-4 py-1.5 rounded-lg hover:bg-navy-light disabled:opacity-60">
+              メモを保存
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

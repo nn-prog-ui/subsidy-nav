@@ -13,11 +13,17 @@ interface UserItem { id: string; email: string; name: string | null; emailVerifi
 interface Bucket { label: string; count: number; }
 interface AnalyticsData { total: number; byLevel: Bucket[]; byCategory: Bucket[]; byPrefecture: Bucket[]; amount: { avg: number; max: number; min: number }; deadlineSoon: number; }
 interface AuditItem { id: string; adminEmail: string; action: string; target: string; targetId: string | null; detail: string | null; createdAt: string; }
+interface RevisionItem { id: string; subsidyId: string; title: string; adminEmail: string | null; changes: Record<string, { from: unknown; to: unknown }>; createdAt: string; }
+interface EventStats {
+  byType: { type: string; count: number }[];
+  topKeywords: { keyword: string; count: number }[];
+  topViewed: { subsidyId: string; title: string; count: number }[];
+}
 
 const CATEGORIES = ['IT・デジタル','設備投資','創業支援','雇用促進','環境・エネルギー','販路拡大','農業・林業','事業再構築','経営支援','地方創生','海外展開','伝統産業','各種補助金'];
 const PREFECTURES = ['全国','北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
-type Tab = 'stats' | 'analytics' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'audit' | 'scrape';
+type Tab = 'stats' | 'analytics' | 'ranking' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'audit' | 'scrape';
 
 function AdminBar({ data, color }: { data: Bucket[]; color: string }) {
   const max = Math.max(...data.map(d => d.count), 1);
@@ -48,6 +54,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditItem[]>([]);
+  const [eventStats, setEventStats] = useState<EventStats | null>(null);
+  const [revisions, setRevisions] = useState<RevisionItem[]>([]);
   const [tab, setTab] = useState<Tab>('stats');
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
@@ -72,6 +80,8 @@ export default function AdminPage() {
     if (us.status === 'fulfilled') setUsers(us.value.data || []);
     fetch(`${API}/api/subsidies/analytics`).then(r => r.json()).then(j => setAnalytics(j.data)).catch(() => {});
     fetch(`${API}/api/admin/audit-logs`, { headers: h }).then(r => r.json()).then(j => setAuditLogs(j.data || [])).catch(() => {});
+    fetch(`${API}/api/admin/event-stats`, { headers: h }).then(r => r.json()).then(j => setEventStats(j.data)).catch(() => {});
+    fetch(`${API}/api/admin/revisions`, { headers: h }).then(r => r.json()).then(j => setRevisions(j.data || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -174,6 +184,7 @@ export default function AdminPage() {
     { key: 'subsidies', label: '補助金管理', count: subsidies.length },
     { key: 'consulting', label: '相談管理', count: consulting.filter(c => c.status === 'pending').length },
     { key: 'alerts', label: 'アラート', count: alerts.length },
+    { key: 'ranking', label: 'ランキング' },
     { key: 'users', label: 'ユーザー管理', count: users.length },
     { key: 'audit', label: '監査ログ' },
     { key: 'scrape', label: 'スクレイピング' },
@@ -479,29 +490,104 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Ranking Tab */}
+      {tab === 'ranking' && (
+        <div className="space-y-6">
+          <p className="text-sm text-gray-500">直近30日間のユーザー行動を集計しています。</p>
+          {eventStats?.byType && (
+            <div className="grid grid-cols-3 gap-4">
+              {[{ k: 'view', label: '閲覧' }, { k: 'search', label: '検索' }, { k: 'match', label: '診断' }].map(t => (
+                <div key={t.k} className="card p-4 text-center">
+                  <div className="text-2xl font-bold text-navy">{eventStats.byType.find(b => b.type === t.k)?.count || 0}</div>
+                  <div className="text-xs text-gray-500 mt-1">{t.label}イベント</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-3">人気の検索キーワード</h3>
+              {eventStats?.topKeywords?.length ? (
+                <ol className="space-y-1.5">
+                  {eventStats.topKeywords.map((k, i) => (
+                    <li key={k.keyword} className="flex justify-between text-sm">
+                      <span className="text-gray-700"><span className="text-gray-400 mr-2">{i + 1}.</span>{k.keyword}</span>
+                      <span className="text-gray-400">{k.count}回</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="text-gray-400 text-sm">データなし</p>}
+            </div>
+            <div className="card p-5">
+              <h3 className="font-bold text-navy mb-3">よく見られている補助金</h3>
+              {eventStats?.topViewed?.length ? (
+                <ol className="space-y-1.5">
+                  {eventStats.topViewed.map((v, i) => (
+                    <li key={v.subsidyId} className="flex justify-between text-sm gap-2">
+                      <Link href={`/subsidies/${v.subsidyId}`} className="text-navy hover:underline truncate"><span className="text-gray-400 mr-2">{i + 1}.</span>{v.title}</Link>
+                      <span className="text-gray-400 flex-shrink-0">{v.count}回</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="text-gray-400 text-sm">データなし</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Audit Log Tab */}
       {tab === 'audit' && (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>{['日時', '管理者', '操作', '対象', '詳細'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {auditLogs.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">監査ログなし</td></tr>
-              ) : auditLogs.map(a => (
-                <tr key={a.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">{new Date(a.createdAt).toLocaleString('ja-JP')}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-600">{a.adminEmail}</td>
-                  <td className="px-3 py-2.5">
-                    <span className={`badge text-xs ${a.action === 'delete' ? 'bg-red-100 text-red-700' : a.action === 'create' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{a.action}</span>
-                  </td>
-                  <td className="px-3 py-2.5 text-xs text-gray-500">{a.target}{a.targetId ? ` (${a.targetId.slice(0, 8)})` : ''}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-500 max-w-xs truncate">{a.detail || '－'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          <div className="card overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 font-bold text-navy text-sm">操作ログ</div>
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>{['日時', '管理者', '操作', '対象', '詳細'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {auditLogs.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">監査ログなし</td></tr>
+                ) : auditLogs.map(a => (
+                  <tr key={a.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">{new Date(a.createdAt).toLocaleString('ja-JP')}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-600">{a.adminEmail}</td>
+                    <td className="px-3 py-2.5">
+                      <span className={`badge text-xs ${a.action === 'delete' ? 'bg-red-100 text-red-700' : a.action === 'create' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{a.action}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500">{a.target}{a.targetId ? ` (${a.targetId.slice(0, 8)})` : ''}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500 max-w-xs truncate">{a.detail || '－'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 補助金変更履歴 */}
+          <div className="card p-5">
+            <h3 className="font-bold text-navy mb-3 text-sm">補助金の変更履歴（直近50件）</h3>
+            {revisions.length === 0 ? (
+              <p className="text-gray-400 text-sm">変更履歴なし</p>
+            ) : (
+              <div className="space-y-3">
+                {revisions.map(r => (
+                  <div key={r.id} className="border-b border-gray-50 pb-3 last:border-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <Link href={`/subsidies/${r.subsidyId}`} className="text-navy font-medium text-sm hover:underline truncate">{r.title}</Link>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{new Date(r.createdAt).toLocaleString('ja-JP')}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 space-y-0.5">
+                      {Object.entries(r.changes).map(([field, c]) => (
+                        <div key={field}>
+                          <span className="font-medium text-gray-600">{field}</span>: <span className="text-red-500 line-through">{String(c.from ?? '－')}</span> → <span className="text-green-600">{String(c.to ?? '－')}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {r.adminEmail && <div className="text-xs text-gray-300 mt-1">by {r.adminEmail}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

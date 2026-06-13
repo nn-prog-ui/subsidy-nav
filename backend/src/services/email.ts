@@ -95,6 +95,57 @@ export async function sendWeeklyDigest() {
   console.log(`Weekly digest sent to ${adminEmail}`);
 }
 
+export async function sendProgressDeadlineReminders() {
+  // 申請完了前（considering/preparing）の進捗があり、締切が7日以内の補助金についてユーザーへ通知
+  const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const progresses = await prisma.applicationProgress.findMany({
+    where: { status: { in: ['considering', 'preparing'] } },
+    include: { user: { select: { email: true, emailVerified: true } } },
+  });
+  if (progresses.length === 0) return;
+
+  const subsidyIds = [...new Set(progresses.map(p => p.subsidyId))];
+  const subsidies = await prisma.subsidy.findMany({
+    where: { id: { in: subsidyIds }, status: 'active', applicationEnd: { gte: new Date(), lte: soon } },
+  });
+  const subMap = Object.fromEntries(subsidies.map(s => [s.id, s]));
+
+  // ユーザーごとに該当補助金をまとめる
+  const byUser = new Map<string, { title: string; end: Date }[]>();
+  for (const p of progresses) {
+    const s = subMap[p.subsidyId];
+    if (!s || !s.applicationEnd) continue;
+    if (!p.user.emailVerified) continue;
+    const list = byUser.get(p.user.email) || [];
+    list.push({ title: s.title, end: s.applicationEnd });
+    byUser.set(p.user.email, list);
+  }
+  if (byUser.size === 0) return;
+
+  const transporter = createTransporter();
+  for (const [email, items] of byUser) {
+    const rows = items
+      .sort((a, b) => a.end.getTime() - b.end.getTime())
+      .map(i => `<li><strong>${i.title}</strong> — 締切 ${i.end.toLocaleDateString('ja-JP')}</li>`)
+      .join('');
+    await transporter.sendMail({
+      from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
+      to: email,
+      subject: '【補助金ナビ】申請準備中の補助金の締切が近づいています',
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+          <h2 style="color:#1e3a5f">⏰ 締切リマインド</h2>
+          <p>申請準備中・検討中として記録されている補助金のうち、締切が7日以内のものがあります。</p>
+          <ul style="line-height:1.8">${rows}</ul>
+          <p style="margin-top:16px"><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/mypage" style="color:#e8954a">マイページで確認する →</a></p>
+          <p style="color:#999;font-size:12px;margin-top:24px">補助金ナビ 自動送信メール</p>
+        </div>
+      `,
+    }).catch(err => console.error('Progress reminder error:', err.message));
+  }
+  console.log(`Progress deadline reminders sent to ${byUser.size} users`);
+}
+
 export async function sendAnalyticsReport() {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail) return;

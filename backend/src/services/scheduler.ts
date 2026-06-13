@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { runScrape } from './scraper';
-import { sendWeeklyDigest, sendDeadlineAlerts, sendAnalyticsReport } from './email';
+import { sendWeeklyDigest, sendDeadlineAlerts, sendAnalyticsReport, sendProgressDeadlineReminders } from './email';
 import { notifyScrapeComplete, notifyDeadlineSoon } from './notify';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from './maintenance';
 import { PrismaClient } from '@prisma/client';
@@ -37,10 +37,11 @@ export function startScheduler() {
     await activateUpcomingSubsidies().catch(console.error);
   }, { timezone: 'Asia/Tokyo' });
 
-  // 毎日 AM9:00 JST 締切アラート + LINE通知
+  // 毎日 AM9:00 JST 締切アラート + 進捗リマインド + LINE通知
   cron.schedule('0 9 * * *', async () => {
     console.log('[Scheduler] Sending deadline alerts...');
     await sendDeadlineAlerts().catch(console.error);
+    await sendProgressDeadlineReminders().catch(console.error);
     const threeDaysLater = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
     const expiring = await prisma.subsidy.findMany({
       where: { applicationEnd: { lte: threeDaysLater, gte: new Date() }, status: 'active' },

@@ -93,6 +93,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <div className="hidden md:flex items-center gap-6 text-sm font-medium">
               <Link href="/subsidies" className="hover:text-orange-300 transition-colors">補助金を探す</Link>
+              <Link href="/categories" className="hover:text-orange-300 transition-colors">カテゴリ</Link>
               <Link href="/matching" className="hover:text-orange-300 transition-colors">マッチング診断</Link>
               <Link href="/calendar" className="hover:text-orange-300 transition-colors">カレンダー</Link>
               <Link href="/compare" className="hover:text-orange-300 transition-colors">比較</Link>
@@ -117,6 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <h4 className="font-semibold mb-3 text-gray-300">サービス</h4>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><Link href="/subsidies" className="hover:text-white">補助金検索</Link></li>
+                <li><Link href="/categories" className="hover:text-white">カテゴリから探す</Link></li>
                 <li><Link href="/matching" className="hover:text-white">マッチング診断</Link></li>
                 <li><Link href="/calendar" className="hover:text-white">カレンダー</Link></li>
                 <li><Link href="/compare" className="hover:text-white">補助金比較</Link></li>

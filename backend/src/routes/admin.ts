@@ -130,6 +130,9 @@ router.post('/subsidies', requireAdmin, async (req: Request, res: Response) => {
 
 router.patch('/subsidies/:id', requireAdmin, async (req: Request, res: Response) => {
   const { maxAmount, applicationStart, applicationEnd, estimatedDays, ...rest } = req.body;
+  const before = await prisma.subsidy.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ error: 'Not found' });
+
   const data = await prisma.subsidy.update({
     where: { id: req.params.id },
     data: {
@@ -140,9 +143,34 @@ router.patch('/subsidies/:id', requireAdmin, async (req: Request, res: Response)
       ...(estimatedDays !== undefined ? { estimatedDays: estimatedDays ? parseInt(estimatedDays) : null } : {}),
     },
   });
+
+  // 変更フィールドの差分を記録
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+  for (const key of Object.keys(req.body)) {
+    const b = (before as any)[key];
+    const a = (data as any)[key];
+    const bs = b instanceof Date ? b.toISOString() : typeof b === 'bigint' ? b.toString() : b;
+    const as = a instanceof Date ? a.toISOString() : typeof a === 'bigint' ? a.toString() : a;
+    if (JSON.stringify(bs) !== JSON.stringify(as)) changes[key] = { from: bs ?? null, to: as ?? null };
+  }
+  if (Object.keys(changes).length > 0) {
+    await prisma.subsidyRevision.create({
+      data: { subsidyId: data.id, adminEmail: (req as any).adminEmail || null, changes: JSON.stringify(changes) },
+    }).catch(e => console.error('Revision error:', e.message));
+  }
+
   invalidateCache('/api/subsidies');
   await recordAudit(req, 'update', 'subsidy', data.id, data.title);
   res.json({ data });
+});
+
+// 補助金の変更履歴（全体・直近50件、タイトル付き）
+router.get('/revisions', requireAdmin, async (_req: Request, res: Response) => {
+  const revisions = await prisma.subsidyRevision.findMany({ orderBy: { createdAt: 'desc' }, take: 50 });
+  const ids = [...new Set(revisions.map(r => r.subsidyId))];
+  const subs = await prisma.subsidy.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+  const titleMap = Object.fromEntries(subs.map(s => [s.id, s.title]));
+  res.json({ data: revisions.map(r => ({ ...r, title: titleMap[r.subsidyId] || '(削除済み)', changes: JSON.parse(r.changes) })) });
 });
 
 // Bulk status update
@@ -197,6 +225,42 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
 router.get('/audit-logs', requireAdmin, async (_req: Request, res: Response) => {
   const data = await prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
   res.json({ data });
+});
+
+// 解析イベント集計（直近30日の検索キーワード・閲覧ランキング）
+router.get('/event-stats', requireAdmin, async (_req: Request, res: Response) => {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const [byType, topKeywordsRaw, topViewedRaw] = await Promise.all([
+    prisma.analyticsEvent.groupBy({ by: ['type'], where: { createdAt: { gte: since } }, _count: { id: true } }),
+    prisma.analyticsEvent.groupBy({
+      by: ['keyword'],
+      where: { type: 'search', keyword: { not: null }, createdAt: { gte: since } },
+      _count: { keyword: true },
+      orderBy: { _count: { keyword: 'desc' } },
+      take: 15,
+    }),
+    prisma.analyticsEvent.groupBy({
+      by: ['subsidyId'],
+      where: { type: 'view', subsidyId: { not: null }, createdAt: { gte: since } },
+      _count: { subsidyId: true },
+      orderBy: { _count: { subsidyId: 'desc' } },
+      take: 15,
+    }),
+  ]);
+
+  // 閲覧ランキングに補助金タイトルを付与
+  const viewedIds = topViewedRaw.map(v => v.subsidyId!).filter(Boolean);
+  const viewedSubsidies = await prisma.subsidy.findMany({ where: { id: { in: viewedIds } }, select: { id: true, title: true } });
+  const titleMap = Object.fromEntries(viewedSubsidies.map(s => [s.id, s.title]));
+
+  res.json({
+    data: {
+      byType: byType.map(t => ({ type: t.type, count: t._count.id })),
+      topKeywords: topKeywordsRaw.map(k => ({ keyword: k.keyword, count: k._count.keyword })),
+      topViewed: topViewedRaw.map(v => ({ subsidyId: v.subsidyId, title: titleMap[v.subsidyId!] || '(削除済み)', count: v._count.subsidyId })),
+    },
+  });
 });
 
 // CSV Import
