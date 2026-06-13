@@ -31,8 +31,8 @@ async function getSubsidy(id: string) {
   }
 }
 
-export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function Image({ params }: { params: { id: string } }) {
+  const { id } = params;
   const s = await getSubsidy(id);
   const title = (s?.title || '補助金ナビ').slice(0, 60);
   const category = s?.category || '';

@@ -160,7 +160,7 @@ export async function sendAnalyticsReport() {
     prisma.subsidy.count({ where: { ...where, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
   ]);
 
-  const yen = (n: number | null) => n ? `¥${Math.round(Number(n)).toLocaleString()}` : '－';
+  const yen = (n: number | bigint | null) => n ? `¥${Math.round(Number(n)).toLocaleString()}` : '－';
   const levelRows = byLevel.map(l => `<li>${l.level}: <strong>${l._count.id}件</strong></li>`).join('');
   const catRows = byCategory.map(c => `
     <tr><td style="padding:6px 10px;border-bottom:1px solid #eee">${c.category}</td>

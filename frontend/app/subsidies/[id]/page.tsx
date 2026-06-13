@@ -29,8 +29,8 @@ const DIFFICULTY: Record<string, { label: string; color: string }> = {
   hard: { label: '難しい', color: 'bg-red-100 text-red-700' },
 };
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const { id } = params;
   const result = await getSubsidy(id);
   if (!result) return { title: '補助金が見つかりません' };
   const s = result.data;
@@ -55,8 +55,8 @@ async function getSubsidy(id: string): Promise<{ data: SubsidyDetail; related: S
   } catch { return null; }
 }
 
-export default async function SubsidyDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function SubsidyDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const result = await getSubsidy(id);
   if (!result) notFound();
 

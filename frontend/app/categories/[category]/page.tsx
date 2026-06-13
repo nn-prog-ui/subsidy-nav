@@ -23,8 +23,8 @@ async function getByCategory(category: string): Promise<{ data: Subsidy[]; total
   } catch { return null; }
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ category: string }> }): Promise<Metadata> {
-  const { category } = await params;
+export async function generateMetadata({ params }: { params: { category: string } }): Promise<Metadata> {
+  const { category } = params;
   const cat = decodeURIComponent(category);
   return {
     title: `${cat}の補助金・助成金一覧`,
@@ -34,8 +34,8 @@ export async function generateMetadata({ params }: { params: Promise<{ category:
   };
 }
 
-export default async function CategoryPage({ params }: { params: Promise<{ category: string }> }) {
-  const { category } = await params;
+export default async function CategoryPage({ params }: { params: { category: string } }) {
+  const { category } = params;
   const cat = decodeURIComponent(category);
   const result = await getByCategory(cat);
   if (!result) notFound();
