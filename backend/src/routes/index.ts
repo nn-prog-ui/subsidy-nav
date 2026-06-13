@@ -11,6 +11,7 @@ import favoritesRouter from './favorites';
 import progressRouter from './progress';
 import eventsRouter from './events';
 import docsRouter from './docs';
+import collectionsRouter from './collections';
 
 export const router = Router();
 
@@ -27,3 +28,4 @@ router.use('/auth', authRouter);
 router.use('/favorites', favoritesRouter);
 router.use('/progress', progressRouter);
 router.use('/events', eventsRouter);
+router.use('/collections', collectionsRouter);

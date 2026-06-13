@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { sendAlertVerificationEmail } from '../services/email';
+import { validateBody, alertSchema } from '../utils/validation';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validateBody(alertSchema), async (req: Request, res: Response) => {
   const { email, prefectures, categories, keywords, municipalityCodes } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
   const alert = await prisma.alert.create({
     data: { email, prefectures: prefectures || [], categories: categories || [], keywords: keywords || [], municipalityCodes: municipalityCodes || [] },
   });

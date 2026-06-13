@@ -70,6 +70,7 @@ export default function MyPage() {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [recos, setRecos] = useState<Reco[]>([]);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadRecos = () => {
@@ -93,8 +94,27 @@ export default function MyPage() {
         .then(r => r.json())
         .then(j => setProgress(j.data || []))
         .catch(() => {});
+      fetch(`${API}/api/favorites/share`, { headers: authHeaders() })
+        .then(r => r.json())
+        .then(j => setShareToken(j.token || null))
+        .catch(() => {});
     });
   }, [router]);
+
+  const enableShare = async () => {
+    const res = await fetch(`${API}/api/favorites/share`, { method: 'POST', headers: authHeaders() });
+    const j = await res.json();
+    setShareToken(j.token || null);
+    toast('共有リンクを作成しました', 'success');
+  };
+
+  const disableShare = async () => {
+    await fetch(`${API}/api/favorites/share`, { method: 'DELETE', headers: authHeaders() });
+    setShareToken(null);
+    toast('共有を停止しました', 'success');
+  };
+
+  const shareUrl = shareToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/collections/${shareToken}` : '';
 
   const removeFavorite = async (subsidyId: string) => {
     await fetch(`${API}/api/favorites/${subsidyId}`, { method: 'DELETE', headers: authHeaders() });
@@ -220,6 +240,27 @@ export default function MyPage() {
           ))}
         </div>
       )}
+
+      {/* 共有コレクション */}
+      <div className="mt-8 card p-5">
+        <h2 className="text-lg font-bold text-navy mb-1">お気に入りを共有</h2>
+        <p className="text-sm text-gray-500 mb-3">公開リンクを発行すると、ログイン不要でお気に入り一覧を共有できます。</p>
+        {shareToken ? (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input readOnly value={shareUrl} className="input text-sm flex-1" onFocus={e => e.currentTarget.select()} />
+              <button onClick={() => { navigator.clipboard?.writeText(shareUrl); toast('リンクをコピーしました', 'success'); }}
+                className="text-sm bg-navy text-white px-4 rounded-lg hover:bg-navy-light whitespace-nowrap">コピー</button>
+            </div>
+            <div className="flex gap-3 text-sm">
+              <a href={shareUrl} target="_blank" rel="noreferrer" className="text-navy hover:underline">プレビュー →</a>
+              <button onClick={disableShare} className="text-gray-400 hover:text-red-500">共有を停止</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={enableShare} className="btn-primary text-sm">🔗 共有リンクを作成</button>
+        )}
+      </div>
 
       {/* Favorites-based recommendations */}
       {recos.length > 0 && (

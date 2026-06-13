@@ -121,6 +121,7 @@ model User {
   resetToken       String?               @unique
   resetTokenExpiry DateTime?
   provider         String                @default("email")
+  shareToken       String?               @unique
   favorites        Favorite[]
   progress         ApplicationProgress[]
   createdAt        DateTime              @default(now())

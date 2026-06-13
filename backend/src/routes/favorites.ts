@@ -48,6 +48,36 @@ router.post('/', async (req: Request, res: Response) => {
   res.status(201).json({ data });
 });
 
+// --- 共有コレクション（/:subsidyId より前に定義してルート衝突を回避）---
+// GET /api/favorites/share — 現在の共有トークンを取得
+router.get('/share', async (req: Request, res: Response) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { shareToken: true } });
+  res.json({ token: user?.shareToken || null });
+});
+
+// POST /api/favorites/share — 共有を有効化（トークン発行、既存なら再利用）
+router.post('/share', async (req: Request, res: Response) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const existing = await prisma.user.findUnique({ where: { id: userId }, select: { shareToken: true } });
+  let token = existing?.shareToken;
+  if (!token) {
+    token = require('crypto').randomBytes(16).toString('hex');
+    await prisma.user.update({ where: { id: userId }, data: { shareToken: token } });
+  }
+  res.json({ token });
+});
+
+// DELETE /api/favorites/share — 共有を無効化
+router.delete('/share', async (req: Request, res: Response) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  await prisma.user.update({ where: { id: userId }, data: { shareToken: null } });
+  res.json({ message: '共有を停止しました' });
+});
+
 // DELETE /api/favorites/:subsidyId
 router.delete('/:subsidyId', async (req: Request, res: Response) => {
   const userId = getUserId(req);

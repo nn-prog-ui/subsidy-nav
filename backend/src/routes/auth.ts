@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email';
+import { validateBody, registerSchema, loginSchema } from '../utils/validation';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -12,9 +13,8 @@ const signToken = (id: string, email: string) =>
   jwt.sign({ id, email }, JWT_SECRET, { expiresIn: '7d' });
 
 // POST /api/auth/register
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', validateBody(registerSchema), async (req: Request, res: Response) => {
   const { email, password, name } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'email, password required' });
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) return res.status(409).json({ error: 'このメールアドレスは既に登録されています' });
   const passwordHash = await bcrypt.hash(password, 10);
@@ -25,7 +25,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', validateBody(loginSchema), async (req: Request, res: Response) => {
   const { email, password } = req.body;
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.passwordHash) return res.status(401).json({ error: 'メールアドレスまたはパスワードが違います' });
