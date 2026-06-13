@@ -10,10 +10,12 @@ import authRouter from './auth';
 import favoritesRouter from './favorites';
 import progressRouter from './progress';
 import eventsRouter from './events';
+import docsRouter from './docs';
 
 export const router = Router();
 
 router.get('/health', (_, res) => res.json({ status: 'ok' }));
+router.use('/', docsRouter);
 router.use('/subsidies', subsidiesRouter);
 router.use('/alerts', alertsRouter);
 router.use('/consulting', consultingRouter);

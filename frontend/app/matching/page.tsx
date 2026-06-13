@@ -35,6 +35,20 @@ export default function MatchingPage() {
     setLoading(false);
   };
 
+  const downloadPdf = async () => {
+    const res = await fetch(`${API}/api/matching/pdf`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefecture, industry, employees }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'matching_result.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   if (results !== null) return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -42,8 +56,13 @@ export default function MatchingPage() {
           <h1 className="text-2xl font-bold text-navy">マッチング結果</h1>
           <p className="text-gray-500 mt-1">{prefecture} / {industry} / {employees} — {results.length}件マッチ</p>
         </div>
-        <button onClick={() => { setResults(null); setStep(0); setPrefecture(''); setIndustry(''); setEmployees(''); }}
-          className="btn-outline text-sm">再診断する</button>
+        <div className="flex gap-2">
+          {results.length > 0 && (
+            <button onClick={downloadPdf} className="btn-outline text-sm">📄 PDFで保存</button>
+          )}
+          <button onClick={() => { setResults(null); setStep(0); setPrefecture(''); setIndustry(''); setEmployees(''); }}
+            className="btn-outline text-sm">再診断する</button>
+        </div>
       </div>
 
       {results.length === 0 ? (

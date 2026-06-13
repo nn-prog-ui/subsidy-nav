@@ -140,6 +140,44 @@ router.get('/analytics', cacheMiddleware(600), async (_req: Request, res: Respon
   });
 });
 
+// CSVエクスポート（フィルタ対応・最大2000件）
+router.get('/export', async (req: Request, res: Response) => {
+  const { prefecture, category, level, keyword, difficulty } = req.query as Record<string, string>;
+  const where: Prisma.SubsidyWhereInput = { status: 'active' };
+  if (prefecture && prefecture !== '全国') (where as any).OR = [{ prefecture }, { prefecture: '全国' }];
+  if (category) where.category = category;
+  if (level) where.level = level;
+  if (difficulty) where.difficulty = difficulty;
+  if (keyword) where.AND = [{ OR: [
+    { title: { contains: keyword, mode: 'insensitive' } },
+    { description: { contains: keyword, mode: 'insensitive' } },
+  ] }];
+
+  const rows = await prisma.subsidy.findMany({ where, take: 2000, orderBy: { createdAt: 'desc' } });
+
+  const esc = (v: unknown) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const headers = ['id', 'title', 'category', 'level', 'prefecture', 'municipalityName', 'targetType',
+    'maxAmount', 'subsidyRate', 'applicationStart', 'applicationEnd', 'difficulty', 'estimatedDays', 'applicationUrl'];
+  const fmtDate = (d: Date | null) => d ? new Date(d).toISOString().slice(0, 10) : '';
+
+  const lines = [headers.join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.id, r.title, r.category, r.level, r.prefecture, r.municipalityName, r.targetType,
+      r.maxAmount ? r.maxAmount.toString() : '', r.subsidyRate,
+      fmtDate(r.applicationStart), fmtDate(r.applicationEnd), r.difficulty, r.estimatedDays, r.applicationUrl,
+    ].map(esc).join(','));
+  }
+  // Excelの文字化け対策にBOMを付与
+  const csv = '﻿' + lines.join('\r\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="subsidies_${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(csv);
+});
+
 // 人気の補助金（直近30日の閲覧イベント数で集計）
 router.get('/popular', cacheMiddleware(600), async (req: Request, res: Response) => {
   const limit = Math.min(parseInt((req.query.limit as string) || '6'), 20);

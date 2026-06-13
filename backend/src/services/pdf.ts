@@ -67,6 +67,53 @@ export function generateSubsidyPdf(subsidy: {
   return doc;
 }
 
+export function generateMatchingPdf(
+  params: { prefecture: string; industry: string; employees: string },
+  results: { title: string; category: string; level: string; prefecture: string; maxAmount: bigint | number | null; matchScore: number; reasons: string[] }[],
+) {
+  const doc = new PDFDocument({ margin: 50, size: 'A4' });
+  doc.font('Helvetica');
+
+  const money = (n: bigint | number | null) => n ? `¥${Number(n).toLocaleString()}` : '上限なし';
+
+  // Header
+  doc.rect(0, 0, doc.page.width, 80).fill('#1e3a5f');
+  doc.fillColor('white').fontSize(20).text('補助金ナビ', 50, 25);
+  doc.fontSize(10).text('マッチング診断結果レポート', 50, 52);
+
+  doc.fillColor('#1e3a5f').fontSize(14).text('診断条件', 50, 105);
+  doc.moveTo(50, doc.y + 4).lineTo(545, doc.y + 4).strokeColor('#ddd').stroke();
+  doc.moveDown(0.5);
+  doc.fillColor('#333').fontSize(10)
+    .text(`地域: ${params.prefecture}　業種: ${params.industry}　従業員数: ${params.employees}`, { width: 495 });
+
+  doc.moveDown();
+  doc.fillColor('#1e3a5f').fontSize(14).text(`おすすめの補助金（${results.length}件）`);
+  doc.moveTo(50, doc.y + 4).lineTo(545, doc.y + 4).strokeColor('#ddd').stroke();
+  doc.moveDown(0.5);
+
+  results.forEach((r, i) => {
+    if (doc.y > doc.page.height - 120) doc.addPage();
+    doc.fillColor('#1e3a5f').fontSize(11).text(`${i + 1}. ${r.title}`, { width: 495 });
+    doc.fillColor('#555').fontSize(9).text(
+      `マッチ度 ${r.matchScore}　|　${r.level}・${r.prefecture}　|　${r.category}　|　${money(r.maxAmount)}`,
+      { width: 495 }
+    );
+    if (r.reasons.length) {
+      doc.fillColor('#2980b9').fontSize(8).text(`理由: ${r.reasons.join(' / ')}`, { width: 495 });
+    }
+    doc.moveDown(0.6);
+  });
+
+  doc.fillColor('#999').fontSize(8).text(
+    `補助金ナビ（subsidy-nav.jp）　出力日: ${new Date().toLocaleDateString('ja-JP')}`,
+    50, doc.page.height - 40, { align: 'center', width: 495 }
+  );
+
+  doc.end();
+  return doc;
+}
+
 export function generateTemplatePdf(template: { title: string; category: string; description: string; fileName: string }) {
   const doc = new PDFDocument({ margin: 50, size: 'A4' });
 

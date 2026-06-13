@@ -35,7 +35,14 @@ NEXT_PUBLIC_SITE_URL=https://<frontendのRailway URL>
 
 1. Railway プロジェクトの Settings → Tokens で API Token 生成
 2. GitHub リポジトリの Settings → Secrets に `RAILWAY_TOKEN` を追加
-3. main ブランチへの push で自動デプロイが実行される
+3. GitHub リポジトリの Settings → Variables に `DEPLOY_ENABLED` = `true` を追加
+   （未設定の間は Deploy ワークフローはスキップされ、CI を汚しません）
+4. main ブランチへの push で自動デプロイが実行される
+
+## API ドキュメント
+
+- OpenAPI 仕様: `https://<backend>/api/openapi.json`
+- Redoc ビューア: `https://<backend>/api/docs`
 
 ## 初回デプロイ後
 

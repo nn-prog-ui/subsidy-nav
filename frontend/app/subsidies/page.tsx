@@ -132,6 +132,20 @@ function SubsidiesContent() {
               className="w-full text-sm text-gray-500 hover:text-gray-700 underline text-left">
               フィルターをリセット
             </button>
+            {(() => {
+              const ep = new URLSearchParams();
+              if (filters.prefecture) ep.set('prefecture', filters.prefecture);
+              if (filters.category) ep.set('category', filters.category);
+              if (filters.level) ep.set('level', filters.level);
+              if (filters.keyword) ep.set('keyword', filters.keyword);
+              if (filters.difficulty) ep.set('difficulty', filters.difficulty);
+              return (
+                <a href={`${API}/api/subsidies/export?${ep}`}
+                  className="block w-full text-center text-sm border border-navy text-navy rounded-lg py-2 hover:bg-navy hover:text-white transition-colors">
+                  📥 CSVでダウンロード
+                </a>
+              );
+            })()}
           </div>
         </aside>
 
