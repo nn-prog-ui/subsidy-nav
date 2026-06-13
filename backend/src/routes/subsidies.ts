@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { generateSubsidyPdf } from '../services/pdf';
 import { cacheMiddleware } from '../middleware/cache';
-import { buildTsQuery, expandSynonyms } from '../utils/search';
+import { buildTsQuery, expandSynonyms, pickTitleSuggestions } from '../utils/search';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -138,6 +138,30 @@ router.get('/analytics', cacheMiddleware(600), async (_req: Request, res: Respon
       deadlineSoon: deadlineCount,
     },
   });
+});
+
+// 検索サジェスト（タイトル候補 + 人気キーワード）
+router.get('/suggest', cacheMiddleware(120), async (req: Request, res: Response) => {
+  const q = ((req.query.q as string) || '').trim();
+  if (q.length < 1) return res.json({ titles: [], keywords: [] });
+
+  const [candidates, popular] = await Promise.all([
+    prisma.subsidy.findMany({
+      where: { status: 'active', title: { contains: q, mode: 'insensitive' } },
+      select: { title: true }, take: 30,
+    }),
+    prisma.analyticsEvent.groupBy({
+      by: ['keyword'],
+      where: { type: 'search', keyword: { contains: q, mode: 'insensitive' }, createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+      _count: { keyword: true },
+      orderBy: { _count: { keyword: 'desc' } },
+      take: 5,
+    }).catch(() => [] as { keyword: string | null }[]),
+  ]);
+
+  const titles = pickTitleSuggestions(q, candidates.map(c => c.title), 8);
+  const keywords = popular.map(p => p.keyword).filter((k): k is string => !!k && !titles.includes(k));
+  res.json({ titles, keywords });
 });
 
 // CSVエクスポート（フィルタ対応・最大2000件）

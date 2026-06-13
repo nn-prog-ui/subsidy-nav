@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { trackEvent } from '../../lib/events';
+import { getRecentSearches, addRecentSearch, clearRecentSearches } from '../../lib/recentSearches';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -23,6 +24,10 @@ function SubsidiesContent() {
   const [subsidies, setSubsidies] = useState<Subsidy[]>([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(false);
+  const [suggest, setSuggest] = useState<{ titles: string[]; keywords: string[] }>({ titles: [], keywords: [] });
+  const [recent, setRecent] = useState<string[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const suggestBoxRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState({
     prefecture: sp.get('prefecture') || '',
     category: sp.get('category') || '',
@@ -55,14 +60,48 @@ function SubsidiesContent() {
       const json = await res.json();
       setSubsidies(json.data || []);
       setMeta(json.meta || { total: 0, page: 1, pages: 1 });
-      if (filters.keyword.trim()) trackEvent('search', { keyword: filters.keyword.trim() });
+      if (filters.keyword.trim()) {
+        trackEvent('search', { keyword: filters.keyword.trim() });
+        addRecentSearch(filters.keyword.trim());
+        setRecent(getRecentSearches());
+      }
     } catch {}
     setLoading(false);
   }, [filters]);
 
   useEffect(() => { fetchSubsidies(); }, [fetchSubsidies]);
 
+  // 最近の検索を初期ロード
+  useEffect(() => { setRecent(getRecentSearches()); }, []);
+
+  // キーワード入力に応じてサジェストを取得（デバウンス）
+  useEffect(() => {
+    const q = filters.keyword.trim();
+    if (q.length < 1) { setSuggest({ titles: [], keywords: [] }); return; }
+    const t = setTimeout(() => {
+      fetch(`${API}/api/subsidies/suggest?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(j => setSuggest({ titles: j.titles || [], keywords: j.keywords || [] }))
+        .catch(() => setSuggest({ titles: [], keywords: [] }));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [filters.keyword]);
+
+  // ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (suggestBoxRef.current && !suggestBoxRef.current.contains(e.target as Node)) setShowSuggest(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
   const update = (key: string, value: string) => setFilters(f => ({ ...f, [key]: value, page: 1 }));
+
+  const applyKeyword = (kw: string) => {
+    setFilters(f => ({ ...f, keyword: kw, page: 1 }));
+    setShowSuggest(false);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -76,11 +115,45 @@ function SubsidiesContent() {
         <aside className="lg:col-span-1">
           <div className="card p-4 space-y-4 sticky top-20">
             <h2 className="font-bold text-navy">絞り込み</h2>
-            <div>
+            <div className="relative" ref={suggestBoxRef}>
               <label className="label">キーワード</label>
               <input className="input" placeholder="例：IT導入 創業" value={filters.keyword}
                 onChange={e => update('keyword', e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && fetchSubsidies()} />
+                onFocus={() => setShowSuggest(true)}
+                onKeyDown={e => { if (e.key === 'Enter') { setShowSuggest(false); fetchSubsidies(); } }}
+                role="combobox" aria-expanded={showSuggest} aria-autocomplete="list" />
+              {showSuggest && (suggest.titles.length > 0 || suggest.keywords.length > 0 || (filters.keyword.trim() === '' && recent.length > 0)) && (
+                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto text-sm">
+                  {filters.keyword.trim() === '' && recent.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between px-3 py-1.5 text-xs text-gray-400 border-b border-gray-50">
+                        <span>最近の検索</span>
+                        <button onClick={() => { clearRecentSearches(); setRecent([]); }} className="hover:text-red-500">消去</button>
+                      </div>
+                      {recent.map(r => (
+                        <button key={r} onClick={() => applyKeyword(r)}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2">
+                          <span className="text-gray-300">🕘</span>{r}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {suggest.titles.map(t => (
+                    <button key={`t-${t}`} onClick={() => applyKeyword(t)}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-50 line-clamp-1">{t}</button>
+                  ))}
+                  {suggest.keywords.length > 0 && (
+                    <div className="border-t border-gray-50">
+                      {suggest.keywords.map(k => (
+                        <button key={`k-${k}`} onClick={() => applyKeyword(k)}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-600">
+                          <span className="text-gray-300">🔍</span>{k}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <label className="label">地域</label>

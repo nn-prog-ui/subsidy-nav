@@ -1,4 +1,31 @@
-import { buildTsQuery, formatAmount, daysUntilDeadline, expandSynonyms } from '../utils/search';
+import { buildTsQuery, formatAmount, daysUntilDeadline, expandSynonyms, pickTitleSuggestions } from '../utils/search';
+
+describe('pickTitleSuggestions', () => {
+  const titles = ['IT導入補助金', 'ものづくり補助金', '小規模事業者持続化補助金', 'IT活用促進事業', 'IT導入補助金'];
+
+  it('前方一致を部分一致より優先する', () => {
+    const r = pickTitleSuggestions('IT', titles);
+    expect(r[0]).toBe('IT導入補助金');
+    expect(r).toContain('IT活用促進事業');
+  });
+
+  it('重複を除外する', () => {
+    const r = pickTitleSuggestions('IT', titles);
+    expect(r.filter(t => t === 'IT導入補助金')).toHaveLength(1);
+  });
+
+  it('大文字小文字を無視する', () => {
+    expect(pickTitleSuggestions('it', titles)).toContain('IT導入補助金');
+  });
+
+  it('limitで件数を制限する', () => {
+    expect(pickTitleSuggestions('補助金', titles, 2)).toHaveLength(2);
+  });
+
+  it('空クエリは空配列', () => {
+    expect(pickTitleSuggestions('  ', titles)).toEqual([]);
+  });
+});
 
 describe('expandSynonyms', () => {
   it('同義語を展開し元の語を含む', () => {

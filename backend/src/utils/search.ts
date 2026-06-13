@@ -54,6 +54,25 @@ const SYNONYM_MAP: Record<string, string[]> = (() => {
 })();
 
 /**
+ * 候補タイトルをクエリとの関連度で並べ替える（前方一致を優先、次に部分一致）。
+ * 大文字小文字を無視し、重複を除いて最大 limit 件返す。
+ */
+export function pickTitleSuggestions(query: string, titles: string[], limit = 8): string[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const seen = new Set<string>();
+  const starts: string[] = [];
+  const contains: string[] = [];
+  for (const t of titles) {
+    if (seen.has(t)) continue;
+    const lt = t.toLowerCase();
+    if (lt.startsWith(q)) { starts.push(t); seen.add(t); }
+    else if (lt.includes(q)) { contains.push(t); seen.add(t); }
+  }
+  return [...starts, ...contains].slice(0, limit);
+}
+
+/**
  * キーワードを同義語・表記ゆれを含む語のリストへ展開する（重複排除）。
  * 検索の再現率（recall）を高めるために ILIKE 検索の OR 条件として使用する。
  */
