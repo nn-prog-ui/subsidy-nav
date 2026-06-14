@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { generateSubsidyPdf } from '../services/pdf';
 import { cacheMiddleware } from '../middleware/cache';
 import { buildTsQuery, expandSynonyms, pickTitleSuggestions } from '../utils/search';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.get('/', async (req: Request, res: Response) => {
   const { prefecture, category, level, keyword, targetType, amountMin, amountMax, sort, closingSoon, difficulty, page = '1', limit = '20' } = req.query as Record<string, string>;

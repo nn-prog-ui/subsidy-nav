@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { parse as csvParse } from 'csv-parse/sync';
@@ -22,7 +22,6 @@ async function recordAudit(req: Request, action: string, target: string, targetI
     console.error('Audit log error:', e.message);
   }
 }
-const prisma = new PrismaClient();
 
 router.post('/login', async (req: Request, res: Response) => {
   const { email, password } = req.body;

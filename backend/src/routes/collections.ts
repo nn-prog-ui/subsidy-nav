@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { cacheMiddleware } from '../middleware/cache';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/collections/:token — 公開お気に入りコレクション（匿名閲覧可）
 router.get('/:token', cacheMiddleware(120), async (req: Request, res: Response) => {

@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { generateTemplatePdf } from '../services/pdf';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.get('/', async (_req: Request, res: Response) => {
   const data = await prisma.template.findMany({ orderBy: { downloadCount: 'desc' } });

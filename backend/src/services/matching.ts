@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 
 export const INDUSTRY_CATEGORY_MAP: Record<string, string[]> = {
   'IT・ソフトウェア': ['IT・デジタル', '創業支援'],

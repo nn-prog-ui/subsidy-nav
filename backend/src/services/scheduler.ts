@@ -3,9 +3,8 @@ import { runScrape } from './scraper';
 import { sendWeeklyDigest, sendDeadlineAlerts, sendAnalyticsReport, sendProgressDeadlineReminders } from './email';
 import { notifyScrapeComplete, notifyDeadlineSoon } from './notify';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from './maintenance';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 
 export function startScheduler() {
   // 毎週月曜 AM2:00 JST スクレイピング + LINE通知

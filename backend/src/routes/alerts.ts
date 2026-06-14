@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { sendAlertVerificationEmail } from '../services/email';
 import { validateBody, alertSchema } from '../utils/validation';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.post('/', validateBody(alertSchema), async (req: Request, res: Response) => {
   const { email, prefectures, categories, keywords, municipalityCodes } = req.body;

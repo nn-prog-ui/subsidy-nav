@@ -1,12 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email';
 import { validateBody, registerSchema, loginSchema } from '../utils/validation';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const signToken = (id: string, email: string) =>

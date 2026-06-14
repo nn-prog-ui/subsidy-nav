@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { sendConsultingConfirmation, sendConsultingAdminNotification } from '../services/email';
 import { validateBody, consultingSchema } from '../utils/validation';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.post('/', validateBody(consultingSchema), async (req: Request, res: Response) => {
   const { name, email, company, phone, prefecture, industry, employees, budget, message } = req.body;

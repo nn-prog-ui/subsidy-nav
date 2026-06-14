@@ -4,44 +4,68 @@
 
 ## 機能
 
-- 🔍 **補助金検索** - 地域・カテゴリ・キーワードで絞り込み
-- 🎯 **マッチング診断** - 3問で最適な補助金を診断
-- 🔔 **アラート登録** - 新着・締切前をメール通知（メール認証付き）
-- 📄 **申請テンプレート** - 7種類のPDF書類テンプレート
-- 💬 **無料相談フォーム** - コンサルティング相談
-- 🏛 **管理ダッシュボード** - 相談管理・スクレイピング操作
+### 一般ユーザー（公開）
+- 🔍 **補助金検索** — 地域・カテゴリ・支援レベル・金額レンジ・難易度・締切で絞り込み、並び替え、全文検索（同義語展開）、サジェスト＋オートコンプリート、最近の検索
+- 🗂 **カテゴリ別ランディング** — `/categories`（SEO構造化データ付き）
+- 🎯 **マッチング診断** — 3問で最適な補助金をスコアリング診断（結果PDF出力対応）
+- 📅 **申請期限カレンダー** / ⚖️ **補助金比較**（最大3件）/ 📊 **データ分析**
+- 🔥 **人気の補助金 / おすすめ** — 閲覧イベント・閲覧履歴ベース
+- 📄 **申請テンプレート**（PDF）・補助金詳細PDF・**CSVエクスポート**
+- 🔔 **アラート登録** — 新着・締切前をメール通知（メール認証・ワンクリック配信停止）
+- 💬 **無料相談フォーム**
+
+### 会員（要ログイン）
+- ⭐ お気に入り（メモ編集・**公開共有コレクション**）
+- 🧭 申請進捗トラッカー（5段階ステータス・メモ・締切リマインドのオプトイン）
+- 🔁 お気に入りベースのレコメンド・通知設定
+
+### 管理（`/admin`）
+- 補助金CRUD・検索・ページネーション・CSV入出力・一括ステータス更新
+- 手動スクレイピング・ステータス自動更新・週次分析レポート送信
+- 分析グラフ／検索キーワード・閲覧ランキング／監査ログ／変更履歴／重複検出
+
+### 横断
+- PWA（オフライン対応）・動的OG画像・JSON-LD（GovernmentService/Breadcrumb/ItemList）
+- アクセシビリティ（skip link・focus-visible・ARIA・axe自動監査）
+- OpenAPIドキュメント（`/api/docs`, `/api/openapi.json`）
 
 ## スタック
 
 - **Frontend**: Next.js 14 App Router + TypeScript + Tailwind CSS
-- **Backend**: Express.js + TypeScript
-- **DB**: Prisma + PostgreSQL
-- **メール**: Nodemailer
-- **スケジューラー**: node-cron（毎週月曜 AM2:00スクレイプ / AM8:00ダイジェスト / 毎日AM9:00締切アラート）
-- **スクレイパー**: Cheerio + Axios（54自治体対応）
-- **PDF**: pdfkit
+- **Backend**: Express.js + TypeScript（helmet・rate limit・zodバリデーション・リクエストID）
+- **DB**: Prisma + PostgreSQL（全文検索 tsvector / pg_trgm）
+- **キャッシュ**: node-cache（`REDIS_URL` 設定時は Redis）
+- **メール**: Nodemailer / **スクレイパー**: Cheerio + Axios（54自治体）/ **PDF**: pdfkit
+- **スケジューラー**: node-cron
+  - 毎週月曜 AM2:00 スクレイプ / AM8:00 ダイジェスト / AM8:10 分析レポート
+  - 毎日 AM6:00 ステータス自動更新 / AM9:00 締切アラート＋進捗リマインド
+
+## テスト / CI
+
+- Backend: Jest + supertest（`npm test`）
+- Frontend: Vitest（`npm test`）/ Playwright E2E（`npm run test:e2e`）/ a11y監査（`npm run test:a11y`）
+- GitHub Actions: backend・frontend・E2E（必須）＋ a11y（アドバイザリ）
 
 ## セットアップ
 
 ```bash
-cp .env.example .env
-# .envを編集してSMTP設定等を入力
+cp .env.example .env   # SMTP等を設定
 docker-compose up --build
 ```
 
+- フロント: http://localhost:3000 / API: http://localhost:4000
+- ヘルスチェック: `/api/health`（liveness）, `/api/health/ready`（DB疎通）
+
 ## シードデータ
 
-- 国の補助金: 25件
-- 都道府県補助金: 10件
-- 市区町村補助金: 10件
+- 補助金: 約105件（国50 / 都道府県30 / 市区町村25、難易度・申請ステップ・必要書類付き）
 - PDFテンプレート: 7種類
 
-## スクレイプ対象自治体（54自治体）
+## デプロイ（Railway）
 
-札幌・函館・青森・盛岡・仙台・秋田・山形・福島・水戸・宇都宮・前橋・さいたま・千葉・千代田区・新宿区・渋谷区・練馬区・八王子・横浜・川崎・相模原・新潟・金沢・静岡・浜松・名古屋・豊橋・岐阜・大津・京都・大阪・堺・神戸・姫路・奈良・岡山・広島・福山・下関・高松・松山・高知・福岡・北九州・佐賀・長崎・熊本・大分・宮崎・鹿児島・那覇・沖縄・高崎・つくば
+`RAILWAY_DEPLOY.md` を参照。`DEPLOY_ENABLED=true`（リポジトリ変数）と `RAILWAY_TOKEN`（Secret）を設定すると自動デプロイ。
 
 ## 管理者ログイン
 
 - URL: `http://localhost:3000/admin`
-- Email: `admin@subsidy-nav.jp`
-- Password: `admin1234`
+- Email: `ADMIN_EMAIL`（既定 `admin@subsidy-nav.jp`）/ Password: `ADMIN_PASSWORD`（既定 `admin1234`）

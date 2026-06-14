@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { invalidateCache } from '../middleware/cache';
 
-const prisma = new PrismaClient();
 
 /**
  * 申請締切を過ぎた active な補助金を closed に更新する。
