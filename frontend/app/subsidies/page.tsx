@@ -116,12 +116,12 @@ function SubsidiesContent() {
           <div className="card p-4 space-y-4 sticky top-20">
             <h2 className="font-bold text-navy">絞り込み</h2>
             <div className="relative" ref={suggestBoxRef}>
-              <label className="label">キーワード</label>
-              <input className="input" placeholder="例：IT導入 創業" value={filters.keyword}
+              <label className="label" htmlFor="f-keyword">キーワード</label>
+              <input id="f-keyword" className="input" placeholder="例：IT導入 創業" value={filters.keyword}
                 onChange={e => update('keyword', e.target.value)}
                 onFocus={() => setShowSuggest(true)}
                 onKeyDown={e => { if (e.key === 'Enter') { setShowSuggest(false); fetchSubsidies(); } }}
-                role="combobox" aria-expanded={showSuggest} aria-autocomplete="list" />
+                role="combobox" aria-expanded={showSuggest} aria-autocomplete="list" aria-label="キーワード検索" />
               {showSuggest && (suggest.titles.length > 0 || suggest.keywords.length > 0 || (filters.keyword.trim() === '' && recent.length > 0)) && (
                 <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto text-sm">
                   {filters.keyword.trim() === '' && recent.length > 0 && (
@@ -156,39 +156,39 @@ function SubsidiesContent() {
               )}
             </div>
             <div>
-              <label className="label">地域</label>
-              <select className="input" value={filters.prefecture} onChange={e => update('prefecture', e.target.value)}>
+              <label className="label" htmlFor="f-prefecture">地域</label>
+              <select id="f-prefecture" className="input" value={filters.prefecture} onChange={e => update('prefecture', e.target.value)}>
                 <option value="">すべての地域</option>
                 {PREFECTURES.map(p => <option key={p} value={p === '全国' ? '' : p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">カテゴリ</label>
-              <select className="input" value={filters.category} onChange={e => update('category', e.target.value)}>
+              <label className="label" htmlFor="f-category">カテゴリ</label>
+              <select id="f-category" className="input" value={filters.category} onChange={e => update('category', e.target.value)}>
                 <option value="">すべてのカテゴリ</option>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">支援レベル</label>
-              <select className="input" value={filters.level} onChange={e => update('level', e.target.value)}>
+              <label className="label" htmlFor="f-level">支援レベル</label>
+              <select id="f-level" className="input" value={filters.level} onChange={e => update('level', e.target.value)}>
                 <option value="">すべて</option>
                 {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">補助上限額（円）</label>
+              <label className="label" id="f-amount-label">補助上限額（円）</label>
               <div className="flex items-center gap-2">
                 <input type="number" min="0" className="input" placeholder="下限" value={filters.amountMin}
-                  onChange={e => update('amountMin', e.target.value)} />
+                  aria-label="補助上限額の下限" onChange={e => update('amountMin', e.target.value)} />
                 <span className="text-gray-400">〜</span>
                 <input type="number" min="0" className="input" placeholder="上限" value={filters.amountMax}
-                  onChange={e => update('amountMax', e.target.value)} />
+                  aria-label="補助上限額の上限" onChange={e => update('amountMax', e.target.value)} />
               </div>
             </div>
             <div>
-              <label className="label">申請難易度</label>
-              <select className="input" value={filters.difficulty} onChange={e => update('difficulty', e.target.value)}>
+              <label className="label" htmlFor="f-difficulty">申請難易度</label>
+              <select id="f-difficulty" className="input" value={filters.difficulty} onChange={e => update('difficulty', e.target.value)}>
                 <option value="">すべて</option>
                 <option value="easy">易しい</option>
                 <option value="medium">普通</option>
