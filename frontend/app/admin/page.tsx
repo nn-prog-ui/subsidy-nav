@@ -66,16 +66,25 @@ export default function AdminPage() {
 
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
+  const sessionExpired = useCallback(() => {
+    localStorage.removeItem('admin_token');
+    setToken('');
+    setLoginError('セッションの有効期限が切れました。再度ログインしてください。');
+  }, []);
+
   const fetchData = useCallback(async (t: string) => {
     const h = { Authorization: `Bearer ${t}` };
-    const [s, c, sub, al, us] = await Promise.allSettled([
-      fetch(`${API}/api/admin/stats`, { headers: h }).then(r => r.json()),
+    // 認証付きの代表エンドポイントで先にトークンの有効性を確認
+    const statsRes = await fetch(`${API}/api/admin/stats`, { headers: h });
+    if (statsRes.status === 401) { sessionExpired(); return; }
+    setStats((await statsRes.json()).data);
+
+    const [c, sub, al, us] = await Promise.allSettled([
       fetch(`${API}/api/admin/consulting`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/subsidies?limit=50`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/alerts`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/users`, { headers: h }).then(r => r.json()),
     ]);
-    if (s.status === 'fulfilled') setStats(s.value.data);
     if (c.status === 'fulfilled') setConsulting(c.value.data || []);
     if (sub.status === 'fulfilled') setSubsidies(sub.value.data || []);
     if (al.status === 'fulfilled') setAlerts(al.value.data || []);
@@ -84,7 +93,7 @@ export default function AdminPage() {
     fetch(`${API}/api/admin/audit-logs`, { headers: h }).then(r => r.json()).then(j => setAuditLogs(j.data || [])).catch(() => {});
     fetch(`${API}/api/admin/event-stats`, { headers: h }).then(r => r.json()).then(j => setEventStats(j.data)).catch(() => {});
     fetch(`${API}/api/admin/revisions`, { headers: h }).then(r => r.json()).then(j => setRevisions(j.data || [])).catch(() => {});
-  }, []);
+  }, [sessionExpired]);
 
   useEffect(() => {
     const saved = localStorage.getItem('admin_token');

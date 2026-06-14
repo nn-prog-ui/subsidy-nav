@@ -73,6 +73,7 @@ export default async function SubsidyDetailPage({ params }: { params: { id: stri
     serviceType: subsidy.category,
     url: `${BASE_URL}/subsidies/${subsidy.id}`,
     areaServed: { '@type': 'AdministrativeArea', name: subsidy.prefecture },
+    audience: { '@type': 'Audience', audienceType: subsidy.targetType },
     provider: {
       '@type': 'GovernmentOrganization',
       name: subsidy.municipalityName || subsidy.prefecture || '日本',
@@ -81,7 +82,13 @@ export default async function SubsidyDetailPage({ params }: { params: { id: stri
       availableChannel: { '@type': 'ServiceChannel', serviceUrl: subsidy.applicationUrl },
     } : {}),
     ...(subsidy.maxAmount ? {
-      offers: { '@type': 'Offer', priceCurrency: 'JPY', price: Number(subsidy.maxAmount) },
+      offers: {
+        '@type': 'Offer',
+        priceCurrency: 'JPY',
+        price: Number(subsidy.maxAmount),
+        ...(subsidy.applicationStart ? { validFrom: new Date(subsidy.applicationStart).toISOString().slice(0, 10) } : {}),
+        ...(subsidy.applicationEnd ? { validThrough: new Date(subsidy.applicationEnd).toISOString().slice(0, 10) } : {}),
+      },
     } : {}),
   };
 

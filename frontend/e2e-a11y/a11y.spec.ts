@@ -24,3 +24,6 @@ async function scan(page: any, path: string) {
 test('トップページ a11y', async ({ page }) => { await scan(page, '/'); });
 test('検索ページ a11y', async ({ page }) => { await scan(page, '/subsidies'); });
 test('比較ページ a11y', async ({ page }) => { await scan(page, '/compare'); });
+test('アラート登録 a11y', async ({ page }) => { await scan(page, '/alerts'); });
+test('無料相談 a11y', async ({ page }) => { await scan(page, '/consulting'); });
+test('カレンダー a11y', async ({ page }) => { await scan(page, '/calendar'); });

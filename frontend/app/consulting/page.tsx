@@ -60,53 +60,53 @@ export default function ConsultingPage() {
         <form onSubmit={submit} className="space-y-5">
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="label">お名前 <span className="text-red-500">*</span></label>
-              <input className="input" value={form.name} onChange={e => set('name', e.target.value)} required placeholder="山田 太郎" />
+              <label className="label" htmlFor="c-name">お名前 <span className="text-red-500">*</span></label>
+              <input id="c-name" className="input" aria-label="お名前" value={form.name} onChange={e => set('name', e.target.value)} required placeholder="山田 太郎" />
             </div>
             <div>
-              <label className="label">メールアドレス <span className="text-red-500">*</span></label>
-              <input type="email" className="input" value={form.email} onChange={e => set('email', e.target.value)} required placeholder="your@email.com" />
+              <label className="label" htmlFor="c-email">メールアドレス <span className="text-red-500">*</span></label>
+              <input id="c-email" type="email" className="input" aria-label="メールアドレス" value={form.email} onChange={e => set('email', e.target.value)} required placeholder="your@email.com" />
             </div>
             <div>
-              <label className="label">会社名・屋号</label>
-              <input className="input" value={form.company} onChange={e => set('company', e.target.value)} placeholder="株式会社○○" />
+              <label className="label" htmlFor="c-company">会社名・屋号</label>
+              <input id="c-company" className="input" aria-label="会社名・屋号" value={form.company} onChange={e => set('company', e.target.value)} placeholder="株式会社○○" />
             </div>
             <div>
-              <label className="label">電話番号</label>
-              <input type="tel" className="input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="03-xxxx-xxxx" />
+              <label className="label" htmlFor="c-phone">電話番号</label>
+              <input id="c-phone" type="tel" className="input" aria-label="電話番号" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="03-xxxx-xxxx" />
             </div>
             <div>
-              <label className="label">都道府県</label>
-              <select className="input" value={form.prefecture} onChange={e => set('prefecture', e.target.value)}>
+              <label className="label" htmlFor="c-prefecture">都道府県</label>
+              <select id="c-prefecture" className="input" aria-label="都道府県" value={form.prefecture} onChange={e => set('prefecture', e.target.value)}>
                 <option value="">選択してください</option>
                 {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">業種</label>
-              <select className="input" value={form.industry} onChange={e => set('industry', e.target.value)}>
+              <label className="label" htmlFor="c-industry">業種</label>
+              <select id="c-industry" className="input" aria-label="業種" value={form.industry} onChange={e => set('industry', e.target.value)}>
                 <option value="">選択してください</option>
                 {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">従業員数</label>
-              <select className="input" value={form.employees} onChange={e => set('employees', e.target.value)}>
+              <label className="label" htmlFor="c-employees">従業員数</label>
+              <select id="c-employees" className="input" aria-label="従業員数" value={form.employees} onChange={e => set('employees', e.target.value)}>
                 <option value="">選択してください</option>
                 {['1〜5名','6〜20名','21〜50名','51〜100名','101〜300名','301名以上'].map(e => <option key={e} value={e}>{e}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">希望する補助金の予算規模</label>
-              <select className="input" value={form.budget} onChange={e => set('budget', e.target.value)}>
+              <label className="label" htmlFor="c-budget">希望する補助金の予算規模</label>
+              <select id="c-budget" className="input" aria-label="希望する補助金の予算規模" value={form.budget} onChange={e => set('budget', e.target.value)}>
                 <option value="">選択してください</option>
                 {['100万円未満','100〜500万円','500〜1000万円','1000万円以上','未定'].map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="label">ご相談内容 <span className="text-red-500">*</span></label>
-            <textarea className="input h-32 resize-none" value={form.message} onChange={e => set('message', e.target.value)} required
+            <label className="label" htmlFor="c-message">ご相談内容 <span className="text-red-500">*</span></label>
+            <textarea id="c-message" className="input h-32 resize-none" aria-label="ご相談内容" value={form.message} onChange={e => set('message', e.target.value)} required
               placeholder="事業内容、課題、取り組みたいこと等をご記入ください" />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}

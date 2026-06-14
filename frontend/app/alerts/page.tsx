@@ -52,8 +52,8 @@ export default function AlertsPage() {
       <div className="card p-8">
         <form onSubmit={submit} className="space-y-6">
           <div>
-            <label className="label">メールアドレス <span className="text-red-500">*</span></label>
-            <input type="email" className="input" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
+            <label className="label" htmlFor="alert-email">メールアドレス <span className="text-red-500">*</span></label>
+            <input id="alert-email" type="email" className="input" placeholder="your@email.com" aria-label="メールアドレス" value={email} onChange={e => setEmail(e.target.value)} required />
           </div>
 
           <div>
@@ -82,8 +82,8 @@ export default function AlertsPage() {
           </div>
 
           <div>
-            <label className="label">キーワード（スペース区切り）</label>
-            <input className="input" placeholder="例：IT導入 省エネ 創業" value={keywords} onChange={e => setKeywords(e.target.value)} />
+            <label className="label" htmlFor="alert-keywords">キーワード（スペース区切り）</label>
+            <input id="alert-keywords" className="input" placeholder="例：IT導入 省エネ 創業" aria-label="通知キーワード" value={keywords} onChange={e => setKeywords(e.target.value)} />
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
