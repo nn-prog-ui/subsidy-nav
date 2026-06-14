@@ -7,6 +7,7 @@ import { requireAdmin } from '../middleware/auth';
 import { runScrape } from '../services/scraper';
 import { sendAnalyticsReport } from '../services/email';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/maintenance';
+import { findDuplicateGroups } from '../utils/duplicates';
 import { invalidateCache } from '../middleware/cache';
 
 const router = Router();
@@ -219,6 +220,19 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
   await prisma.user.delete({ where: { id: req.params.id } });
   await recordAudit(req, 'delete', 'user', req.params.id);
   res.json({ message: '削除しました' });
+});
+
+// 重複・類似補助金の検出（タイトル類似度ベース）
+router.get('/subsidies/duplicates', requireAdmin, async (_req: Request, res: Response) => {
+  const subsidies = await prisma.subsidy.findMany({
+    where: { status: { not: 'deleted' } },
+    select: { id: true, title: true, prefecture: true, category: true, level: true, status: true, createdAt: true },
+    take: 2000,
+  });
+  const groups = findDuplicateGroups(subsidies.map(s => ({ id: s.id, title: s.title })));
+  const byId = Object.fromEntries(subsidies.map(s => [s.id, s]));
+  const detailed = groups.map(g => g.map(item => byId[item.id]));
+  res.json({ data: detailed, count: detailed.length });
 });
 
 // Audit logs

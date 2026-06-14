@@ -40,16 +40,37 @@ export default async function CategoryPage({ params }: { params: { category: str
   const result = await getByCategory(cat);
   if (!result) notFound();
 
+  const catUrl = `${BASE_URL}/categories/${encodeURIComponent(cat)}`;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     name: `${cat}の補助金・助成金一覧`,
-    url: `${BASE_URL}/categories/${encodeURIComponent(cat)}`,
+    url: catUrl,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: result.total,
+      itemListElement: result.data.slice(0, 20).map((s, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${BASE_URL}/subsidies/${s.id}`,
+        name: s.title,
+      })),
+    },
+  };
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'ホーム', item: BASE_URL },
+      { '@type': 'ListItem', position: 2, name: 'カテゴリ一覧', item: `${BASE_URL}/categories` },
+      { '@type': 'ListItem', position: 3, name: cat, item: catUrl },
+    ],
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <nav className="text-sm text-gray-400 mb-4">
         <Link href="/categories" className="hover:underline">カテゴリ一覧</Link> ＞ {cat}
       </nav>

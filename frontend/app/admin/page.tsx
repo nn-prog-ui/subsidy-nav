@@ -60,6 +60,8 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
   const [showAddSubsidy, setShowAddSubsidy] = useState(false);
+  const [dups, setDups] = useState<{ id: string; title: string; prefecture: string; level: string; status: string }[][] | null>(null);
+  const [dupsLoading, setDupsLoading] = useState(false);
   const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '', difficulty: '', estimatedDays: '' });
 
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
@@ -286,11 +288,40 @@ export default function AdminPage() {
               <a href={`${API}/api/admin/subsidies/export/csv`}
                 onClick={e => { const el = e.currentTarget; el.href = el.href; const h = { Authorization: `Bearer ${token}` }; void fetch(`${API}/api/admin/subsidies/export/csv`, { headers: h }).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'subsidies.csv'; a.click(); }); e.preventDefault(); }}
                 className="btn-outline text-sm">📥 CSVエクスポート</a>
+              <button
+                onClick={async () => { setDupsLoading(true); try { const r = await fetch(`${API}/api/admin/subsidies/duplicates`, { headers: { Authorization: `Bearer ${token}` } }); const j = await r.json(); setDups(j.data || []); } catch { setDups([]); } setDupsLoading(false); }}
+                className="btn-outline text-sm">🔎 重複を検出</button>
               <button onClick={() => setShowAddSubsidy(!showAddSubsidy)} className="btn-primary text-sm">
                 {showAddSubsidy ? 'キャンセル' : '+ 補助金を追加'}
               </button>
             </div>
           </div>
+
+          {dupsLoading && <p className="text-sm text-gray-400 mb-4">重複を検出中...</p>}
+          {dups !== null && !dupsLoading && (
+            <div className="card p-4 mb-6 bg-amber-50 border-amber-200">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-navy text-sm">重複の可能性: {dups.length}グループ</h3>
+                <button onClick={() => setDups(null)} className="text-xs text-gray-400 hover:text-gray-600">閉じる</button>
+              </div>
+              {dups.length === 0 ? (
+                <p className="text-sm text-gray-500">重複候補は見つかりませんでした。</p>
+              ) : (
+                <div className="space-y-3">
+                  {dups.map((group, gi) => (
+                    <div key={gi} className="bg-white rounded-lg p-3 border border-amber-100">
+                      {group.map(s => (
+                        <div key={s.id} className="flex items-center justify-between gap-2 text-sm py-0.5">
+                          <Link href={`/subsidies/${s.id}`} className="text-navy hover:underline truncate">{s.title}</Link>
+                          <span className="text-xs text-gray-400 flex-shrink-0">{s.level}・{s.prefecture}・{s.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {showAddSubsidy && (
             <div className="card p-6 mb-6 bg-blue-50">
