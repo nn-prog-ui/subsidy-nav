@@ -62,6 +62,9 @@ export default function AdminPage() {
   const [showAddSubsidy, setShowAddSubsidy] = useState(false);
   const [dups, setDups] = useState<{ id: string; title: string; prefecture: string; level: string; status: string }[][] | null>(null);
   const [dupsLoading, setDupsLoading] = useState(false);
+  const [subPage, setSubPage] = useState(1);
+  const [subKeyword, setSubKeyword] = useState('');
+  const [subMeta, setSubMeta] = useState({ total: 0, pages: 1 });
   const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '', difficulty: '', estimatedDays: '' });
 
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
@@ -81,12 +84,12 @@ export default function AdminPage() {
 
     const [c, sub, al, us] = await Promise.allSettled([
       fetch(`${API}/api/admin/consulting`, { headers: h }).then(r => r.json()),
-      fetch(`${API}/api/admin/subsidies?limit=50`, { headers: h }).then(r => r.json()),
+      fetch(`${API}/api/admin/subsidies?limit=20`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/alerts`, { headers: h }).then(r => r.json()),
       fetch(`${API}/api/admin/users`, { headers: h }).then(r => r.json()),
     ]);
     if (c.status === 'fulfilled') setConsulting(c.value.data || []);
-    if (sub.status === 'fulfilled') setSubsidies(sub.value.data || []);
+    if (sub.status === 'fulfilled') { setSubsidies(sub.value.data || []); setSubMeta(sub.value.meta || { total: 0, pages: 1 }); }
     if (al.status === 'fulfilled') setAlerts(al.value.data || []);
     if (us.status === 'fulfilled') setUsers(us.value.data || []);
     fetch(`${API}/api/subsidies/analytics`).then(r => r.json()).then(j => setAnalytics(j.data)).catch(() => {});
@@ -94,6 +97,17 @@ export default function AdminPage() {
     fetch(`${API}/api/admin/event-stats`, { headers: h }).then(r => r.json()).then(j => setEventStats(j.data)).catch(() => {});
     fetch(`${API}/api/admin/revisions`, { headers: h }).then(r => r.json()).then(j => setRevisions(j.data || [])).catch(() => {});
   }, [sessionExpired]);
+
+  const loadSubsidies = useCallback(async (page: number, keyword: string) => {
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (keyword) params.set('keyword', keyword);
+    const r = await fetch(`${API}/api/admin/subsidies?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.status === 401) { sessionExpired(); return; }
+    const j = await r.json();
+    setSubsidies(j.data || []);
+    setSubMeta(j.meta || { total: 0, pages: 1 });
+    setSubPage(page);
+  }, [token, sessionExpired]);
 
   useEffect(() => {
     const saved = localStorage.getItem('admin_token');
@@ -292,7 +306,17 @@ export default function AdminPage() {
       {tab === 'subsidies' && (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-gray-500">{subsidies.length}件</p>
+            <div className="flex items-center gap-2">
+              <input
+                value={subKeyword}
+                onChange={e => setSubKeyword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') loadSubsidies(1, subKeyword); }}
+                placeholder="タイトル・説明で検索"
+                aria-label="補助金を検索"
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-56" />
+              <button onClick={() => loadSubsidies(1, subKeyword)} className="text-sm text-navy hover:underline">検索</button>
+              <span className="text-sm text-gray-400">全{subMeta.total}件</span>
+            </div>
             <div className="flex gap-2">
               <a href={`${API}/api/admin/subsidies/export/csv`}
                 onClick={e => { const el = e.currentTarget; el.href = el.href; const h = { Authorization: `Bearer ${token}` }; void fetch(`${API}/api/admin/subsidies/export/csv`, { headers: h }).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'subsidies.csv'; a.click(); }); e.preventDefault(); }}
@@ -435,6 +459,16 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+          {subMeta.pages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-4">
+              <button disabled={subPage <= 1} onClick={() => loadSubsidies(subPage - 1, subKeyword)}
+                className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-40 hover:bg-gray-50">← 前</button>
+              <span className="px-3 py-1.5 bg-navy text-white rounded-lg text-sm">{subPage} / {subMeta.pages}</span>
+              <button disabled={subPage >= subMeta.pages} onClick={() => loadSubsidies(subPage + 1, subKeyword)}
+                className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-40 hover:bg-gray-50">次 →</button>
+            </div>
+          )}
         </div>
       )}
 

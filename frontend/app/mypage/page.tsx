@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { API, AuthUser, fetchMe, authHeaders, clearToken } from '../../lib/auth';
 import { toast } from '../Toaster';
+import { toCsv, downloadCsv } from '../../lib/csv';
 
 interface FavoriteItem {
   id: string; subsidyId: string; note: string | null; createdAt: string;
@@ -127,6 +128,22 @@ export default function MyPage() {
 
   const shareUrl = shareToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/collections/${shareToken}` : '';
 
+  const exportFavoritesCsv = () => {
+    const rows = favorites.filter(f => f.subsidy).map(f => [
+      f.subsidy!.title, f.subsidy!.level, f.subsidy!.category, f.subsidy!.prefecture,
+      f.subsidy!.maxAmount ?? '', f.note ?? '',
+    ]);
+    downloadCsv('favorites.csv', toCsv(['補助金名', '区分', 'カテゴリ', '地域', '上限額', 'メモ'], rows));
+  };
+
+  const exportProgressCsv = () => {
+    const rows = progress.map(p => [
+      p.subsidy?.title ?? '', PROGRESS_STATUS[p.status]?.label ?? p.status,
+      new Date(p.updatedAt).toLocaleDateString('ja-JP'),
+    ]);
+    downloadCsv('progress.csv', toCsv(['補助金名', 'ステータス', '更新日'], rows));
+  };
+
   const removeFavorite = async (subsidyId: string) => {
     await fetch(`${API}/api/favorites/${subsidyId}`, { method: 'DELETE', headers: authHeaders() });
     setFavorites(prev => prev.filter(f => f.subsidyId !== subsidyId));
@@ -195,7 +212,10 @@ export default function MyPage() {
       {/* 申請進捗 */}
       {progress.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-navy mb-4">申請進捗</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-navy">申請進捗</h2>
+            <button onClick={exportProgressCsv} className="text-sm text-navy hover:underline">📥 CSVエクスポート</button>
+          </div>
           <div className="space-y-2">
             {progress.map(p => (
               <div key={p.id} className="card p-4 flex items-center justify-between gap-3">
@@ -215,7 +235,12 @@ export default function MyPage() {
       )}
 
       {/* Favorites */}
-      <h2 className="text-xl font-bold text-navy mb-4">お気に入り補助金</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-navy">お気に入り補助金</h2>
+        {favorites.length > 0 && (
+          <button onClick={exportFavoritesCsv} className="text-sm text-navy hover:underline">📥 CSVエクスポート</button>
+        )}
+      </div>
       {favorites.length === 0 ? (
         <div className="card p-12 text-center text-gray-400">
           <div className="text-4xl mb-3">🔖</div>

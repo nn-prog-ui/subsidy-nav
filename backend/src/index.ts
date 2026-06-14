@@ -5,11 +5,13 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { router } from './routes';
 import { errorHandler } from './middleware/errorHandler';
+import { requestId } from './middleware/requestId';
 import { startScheduler } from './services/scheduler';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+app.use(requestId);
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
