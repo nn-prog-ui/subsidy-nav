@@ -14,6 +14,7 @@ interface Bucket { label: string; count: number; }
 interface AnalyticsData { total: number; byLevel: Bucket[]; byCategory: Bucket[]; byPrefecture: Bucket[]; amount: { avg: number; max: number; min: number }; deadlineSoon: number; }
 interface AuditItem { id: string; adminEmail: string; action: string; target: string; targetId: string | null; detail: string | null; createdAt: string; }
 interface RevisionItem { id: string; subsidyId: string; title: string; adminEmail: string | null; changes: Record<string, { from: unknown; to: unknown }>; createdAt: string; }
+interface ReportItem { id: string; subsidyId: string; title: string; reason: string; detail: string | null; email: string | null; status: string; createdAt: string; }
 interface EventStats {
   byType: { type: string; count: number }[];
   topKeywords: { keyword: string; count: number }[];
@@ -23,7 +24,7 @@ interface EventStats {
 const CATEGORIES = ['IT・デジタル','設備投資','創業支援','雇用促進','環境・エネルギー','販路拡大','農業・林業','事業再構築','経営支援','地方創生','海外展開','伝統産業','各種補助金'];
 const PREFECTURES = ['全国','北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
-type Tab = 'stats' | 'analytics' | 'ranking' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'audit' | 'scrape';
+type Tab = 'stats' | 'analytics' | 'ranking' | 'subsidies' | 'consulting' | 'alerts' | 'users' | 'reports' | 'audit' | 'scrape';
 
 function AdminBar({ data, color }: { data: Bucket[]; color: string }) {
   const max = Math.max(...data.map(d => d.count), 1);
@@ -56,6 +57,7 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditItem[]>([]);
   const [eventStats, setEventStats] = useState<EventStats | null>(null);
   const [revisions, setRevisions] = useState<RevisionItem[]>([]);
+  const [reports, setReports] = useState<ReportItem[]>([]);
   const [tab, setTab] = useState<Tab>('stats');
   const [loginError, setLoginError] = useState('');
   const [scrapeMsg, setScrapeMsg] = useState('');
@@ -96,7 +98,15 @@ export default function AdminPage() {
     fetch(`${API}/api/admin/audit-logs`, { headers: h }).then(r => r.json()).then(j => setAuditLogs(j.data || [])).catch(() => {});
     fetch(`${API}/api/admin/event-stats`, { headers: h }).then(r => r.json()).then(j => setEventStats(j.data)).catch(() => {});
     fetch(`${API}/api/admin/revisions`, { headers: h }).then(r => r.json()).then(j => setRevisions(j.data || [])).catch(() => {});
+    fetch(`${API}/api/admin/reports`, { headers: h }).then(r => r.json()).then(j => setReports(j.data || [])).catch(() => {});
   }, [sessionExpired]);
+
+  const updateReportStatus = async (id: string, status: string) => {
+    const res = await fetch(`${API}/api/admin/reports/${id}`, {
+      method: 'PATCH', headers: headers(), body: JSON.stringify({ status }),
+    });
+    if (res.ok) setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  };
 
   const loadSubsidies = useCallback(async (page: number, keyword: string) => {
     const params = new URLSearchParams({ page: String(page), limit: '20' });
@@ -211,6 +221,7 @@ export default function AdminPage() {
     { key: 'alerts', label: 'アラート', count: alerts.length },
     { key: 'ranking', label: 'ランキング' },
     { key: 'users', label: 'ユーザー管理', count: users.length },
+    { key: 'reports', label: '報告', count: reports.filter(r => r.status === 'open').length },
     { key: 'audit', label: '監査ログ' },
     { key: 'scrape', label: 'スクレイピング' },
   ];
@@ -606,6 +617,38 @@ export default function AdminPage() {
               ) : <p className="text-gray-400 text-sm">データなし</p>}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Reports Tab */}
+      {tab === 'reports' && (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>{['日時', '補助金', '理由', '詳細', '連絡先', 'ステータス'].map(h => <th key={h} className="px-3 py-2.5 text-left text-gray-500 font-medium text-xs">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {reports.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">報告なし</td></tr>
+              ) : reports.map(r => (
+                <tr key={r.id} className={`border-t border-gray-100 hover:bg-gray-50 ${r.status === 'open' ? 'bg-yellow-50/50' : ''}`}>
+                  <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">{new Date(r.createdAt).toLocaleDateString('ja-JP')}</td>
+                  <td className="px-3 py-2.5"><Link href={`/subsidies/${r.subsidyId}`} target="_blank" className="text-navy hover:underline line-clamp-1 max-w-[12rem] block">{r.title}</Link></td>
+                  <td className="px-3 py-2.5 text-xs text-gray-600">{({ outdated: '情報が古い', broken_link: 'リンク切れ', wrong_info: '内容に誤り', other: 'その他' } as Record<string, string>)[r.reason] || r.reason}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-500 max-w-xs truncate">{r.detail || '－'}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-400">{r.email || '－'}</td>
+                  <td className="px-3 py-2.5">
+                    <select value={r.status} onChange={e => updateReportStatus(r.id, e.target.value)} aria-label="報告ステータス"
+                      className="text-xs border border-gray-200 rounded px-1.5 py-0.5">
+                      <option value="open">未対応</option>
+                      <option value="resolved">対応済</option>
+                      <option value="dismissed">却下</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

@@ -38,6 +38,15 @@ export const matchingSchema = z.object({
   employees: z.string().min(1),
 });
 
+export const reportSchema = z.object({
+  subsidyId: z.string().min(1),
+  reason: z.enum(['outdated', 'wrong_info', 'broken_link', 'other'], {
+    errorMap: () => ({ message: '報告理由が不正です' }),
+  }),
+  detail: z.string().max(1000).optional(),
+  email: z.string().email('メールアドレスの形式が正しくありません').optional().or(z.literal('')),
+});
+
 /**
  * zodスキーマで req.body を検証するExpressミドルウェアを返す。
  * 失敗時は 400 と最初のエラーメッセージを返す。

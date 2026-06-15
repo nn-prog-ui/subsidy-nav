@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import FavoriteButton from './FavoriteButton';
 import RecordView from './RecordView';
 import ProgressTracker from './ProgressTracker';
+import ReportForm from './ReportForm';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
@@ -204,6 +205,10 @@ export default async function SubsidyDetailPage({ params }: { params: { id: stri
             className="btn-outline text-center">📄 PDF でダウンロード</a>
           <Link href="/matching" className="btn-outline text-center">🎯 診断で類似を探す</Link>
           <FavoriteButton subsidyId={subsidy.id} />
+        </div>
+
+        <div className="mt-4">
+          <ReportForm subsidyId={subsidy.id} />
         </div>
       </div>
 

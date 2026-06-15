@@ -7,6 +7,9 @@ import { router } from './routes';
 import { errorHandler } from './middleware/errorHandler';
 import { requestId } from './middleware/requestId';
 import { startScheduler } from './services/scheduler';
+import { initErrorMonitoring } from './services/monitoring';
+
+initErrorMonitoring();
 
 const app = express();
 const PORT = process.env.PORT || 4000;

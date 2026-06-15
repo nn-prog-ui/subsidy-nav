@@ -177,6 +177,19 @@ model SubsidyRevision {
   @@index([createdAt])
 }
 
+model SubsidyReport {
+  id        String   @id @default(cuid())
+  subsidyId String
+  reason    String // outdated | wrong_info | broken_link | other
+  detail    String?
+  email     String?
+  status    String   @default("open") // open | resolved | dismissed
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([subsidyId])
+}
+
 model Favorite {
   id        String   @id @default(cuid())
   userId    String

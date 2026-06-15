@@ -234,6 +234,28 @@ router.get('/subsidies/duplicates', requireAdmin, async (_req: Request, res: Res
   res.json({ data: detailed, count: detailed.length });
 });
 
+// 情報誤り報告のレビュー
+router.get('/reports', requireAdmin, async (req: Request, res: Response) => {
+  const { status } = req.query as Record<string, string>;
+  const reports = await prisma.subsidyReport.findMany({
+    where: status ? { status } : {},
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+  const ids = [...new Set(reports.map(r => r.subsidyId))];
+  const subs = await prisma.subsidy.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+  const titleMap = Object.fromEntries(subs.map(s => [s.id, s.title]));
+  res.json({ data: reports.map(r => ({ ...r, title: titleMap[r.subsidyId] || '(削除済み)' })) });
+});
+
+router.patch('/reports/:id', requireAdmin, async (req: Request, res: Response) => {
+  const { status } = req.body;
+  if (!['open', 'resolved', 'dismissed'].includes(status)) return res.status(400).json({ error: 'invalid status' });
+  const data = await prisma.subsidyReport.update({ where: { id: req.params.id }, data: { status } });
+  await recordAudit(req, 'update', 'report', data.id, `status=${status}`);
+  res.json({ data });
+});
+
 // Audit logs
 router.get('/audit-logs', requireAdmin, async (_req: Request, res: Response) => {
   const data = await prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });

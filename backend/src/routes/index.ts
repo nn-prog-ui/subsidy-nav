@@ -13,6 +13,7 @@ import progressRouter from './progress';
 import eventsRouter from './events';
 import docsRouter from './docs';
 import collectionsRouter from './collections';
+import reportsRouter from './reports';
 
 export const router = Router();
 
@@ -42,3 +43,4 @@ router.use('/favorites', favoritesRouter);
 router.use('/progress', progressRouter);
 router.use('/events', eventsRouter);
 router.use('/collections', collectionsRouter);
+router.use('/reports', reportsRouter);

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { prisma } from '../lib/prisma';
+import { withRetry } from '../utils/retry';
 
 
 interface ScrapeTarget {
@@ -75,10 +76,13 @@ const TARGETS: ScrapeTarget[] = [
 
 async function scrapeTarget(target: ScrapeTarget): Promise<number> {
   try {
-    const { data: html } = await axios.get(target.url, {
-      timeout: 10000,
-      headers: { 'User-Agent': 'Mozilla/5.0 SubsidyNavigatorBot/1.0' },
-    });
+    const { data: html } = await withRetry(
+      () => axios.get(target.url, {
+        timeout: 10000,
+        headers: { 'User-Agent': 'Mozilla/5.0 SubsidyNavigatorBot/1.0' },
+      }),
+      { retries: 2, baseDelayMs: 1000, onRetry: (_e, a) => console.warn(`[scraper] retry ${target.code} (attempt ${a + 1})`) },
+    );
     const $ = cheerio.load(html);
     let count = 0;
 
