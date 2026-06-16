@@ -131,17 +131,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><Link href="/templates" className="hover:text-white">テンプレート</Link></li>
                 <li><Link href="/consulting" className="hover:text-white">無料相談</Link></li>
+                <li><Link href="/faq" className="hover:text-white">よくある質問</Link></li>
+                <li><Link href="/about" className="hover:text-white">このサイトについて</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-3 text-gray-300">管理</h4>
+              <h4 className="font-semibold mb-3 text-gray-300">運営・規約</h4>
               <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link href="/terms" className="hover:text-white">利用規約</Link></li>
+                <li><Link href="/privacy" className="hover:text-white">プライバシーポリシー</Link></li>
                 <li><Link href="/admin" className="hover:text-white">管理画面</Link></li>
               </ul>
             </div>
           </div>
-          <div className="max-w-7xl mx-auto px-4 mt-8 pt-8 border-t border-white/10 text-center text-gray-500 text-sm">
-            © 2024 補助金ナビ. All rights reserved.
+          <div className="max-w-7xl mx-auto px-4 mt-8 pt-8 border-t border-white/10 text-center text-gray-500 text-sm space-y-2">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              ⚠️ 掲載情報は変更される場合があります。申請の際は必ず各制度の公式情報をご確認ください。本サービスは補助金の採択を保証するものではありません。
+            </p>
+            <p>© 2024 補助金ナビ. All rights reserved.</p>
           </div>
         </footer>
       </body>
