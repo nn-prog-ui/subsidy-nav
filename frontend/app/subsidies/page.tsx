@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { trackEvent } from '../../lib/events';
 import { getRecentSearches, addRecentSearch, clearRecentSearches } from '../../lib/recentSearches';
+import { buildSearchQuery, summarizeFilters } from '../../lib/searchQuery';
+import { getToken, authHeaders } from '../../lib/auth';
+import { toast } from '../Toaster';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -101,6 +104,17 @@ function SubsidiesContent() {
   const applyKeyword = (kw: string) => {
     setFilters(f => ({ ...f, keyword: kw, page: 1 }));
     setShowSuggest(false);
+  };
+
+  const saveSearch = async () => {
+    if (!getToken()) { toast('検索条件の保存にはログインが必要です', 'info'); setTimeout(() => { window.location.href = '/auth/login'; }, 800); return; }
+    const query = buildSearchQuery(filters);
+    const name = summarizeFilters(filters);
+    const res = await fetch(`${API}/api/saved-searches`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, query }),
+    });
+    if (res.ok) toast('検索条件を保存しました（マイページで確認）', 'success');
+    else { const j = await res.json().catch(() => ({})); toast(j.error || '保存に失敗しました', 'error'); }
   };
 
   return (
@@ -219,6 +233,10 @@ function SubsidiesContent() {
                 </a>
               );
             })()}
+            <button onClick={saveSearch}
+              className="block w-full text-center text-sm border border-gray-300 text-gray-600 rounded-lg py-2 hover:border-navy hover:text-navy transition-colors">
+              🔖 この条件を保存
+            </button>
           </div>
         </aside>
 

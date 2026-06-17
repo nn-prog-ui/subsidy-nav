@@ -8,10 +8,21 @@ import { toCsv, downloadCsv } from '../../lib/csv';
 
 interface FavoriteItem {
   id: string; subsidyId: string; note: string | null; createdAt: string;
-  subsidy: { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; } | null;
+  subsidy: { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; applicationEnd: string | null; } | null;
 }
 
 interface Reco { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; }
+
+interface SavedSearch { id: string; name: string; query: string; createdAt: string; }
+
+function deadlineBadge(end: string | null): { label: string; color: string } | null {
+  if (!end) return null;
+  const days = Math.ceil((new Date(end).getTime() - Date.now()) / 86400000);
+  if (days < 0) return { label: '受付終了', color: 'bg-gray-200 text-gray-500' };
+  if (days <= 7) return { label: `締切まで${days}日`, color: 'bg-red-100 text-red-700' };
+  if (days <= 30) return { label: `締切まで${days}日`, color: 'bg-orange-100 text-orange-700' };
+  return null;
+}
 
 interface ProgressItem {
   id: string; subsidyId: string; status: string; updatedAt: string;
@@ -72,6 +83,7 @@ export default function MyPage() {
   const [recos, setRecos] = useState<Reco[]>([]);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadRecos = () => {
@@ -99,8 +111,17 @@ export default function MyPage() {
         .then(r => r.json())
         .then(j => setShareToken(j.token || null))
         .catch(() => {});
+      fetch(`${API}/api/saved-searches`, { headers: authHeaders() })
+        .then(r => r.json())
+        .then(j => setSavedSearches(j.data || []))
+        .catch(() => {});
     });
   }, [router]);
+
+  const deleteSavedSearch = async (id: string) => {
+    await fetch(`${API}/api/saved-searches/${id}`, { method: 'DELETE', headers: authHeaders() });
+    setSavedSearches(prev => prev.filter(s => s.id !== id));
+  };
 
   const enableShare = async () => {
     const res = await fetch(`${API}/api/favorites/share`, { method: 'POST', headers: authHeaders() });
@@ -258,6 +279,7 @@ export default function MyPage() {
                       <span className={`badge text-xs ${LEVEL_COLORS[f.subsidy.level] || 'bg-gray-100'}`}>{f.subsidy.level}</span>
                       <span className="badge text-xs bg-orange-100 text-orange-700">{f.subsidy.category}</span>
                       <span className="badge text-xs bg-gray-100 text-gray-600">{f.subsidy.prefecture}</span>
+                      {(() => { const b = deadlineBadge(f.subsidy.applicationEnd); return b ? <span className={`badge text-xs ${b.color}`}>{b.label}</span> : null; })()}
                     </div>
                     <Link href={`/subsidies/${f.subsidyId}`} className="font-bold text-navy hover:underline">
                       {f.subsidy.title}
@@ -274,6 +296,22 @@ export default function MyPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 保存した検索条件 */}
+      {savedSearches.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-navy mb-4">保存した検索条件</h2>
+          <div className="flex flex-wrap gap-2">
+            {savedSearches.map(s => (
+              <div key={s.id} className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full pl-3 pr-1.5 py-1">
+                <Link href={`/subsidies?${s.query}`} className="text-sm text-navy hover:underline">{s.name}</Link>
+                <button onClick={() => deleteSavedSearch(s.id)} aria-label="保存条件を削除"
+                  className="text-gray-300 hover:text-red-500 text-sm leading-none">×</button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

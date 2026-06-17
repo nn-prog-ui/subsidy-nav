@@ -14,6 +14,7 @@ import eventsRouter from './events';
 import docsRouter from './docs';
 import collectionsRouter from './collections';
 import reportsRouter from './reports';
+import savedSearchesRouter from './savedSearches';
 
 export const router = Router();
 
@@ -44,3 +45,4 @@ router.use('/progress', progressRouter);
 router.use('/events', eventsRouter);
 router.use('/collections', collectionsRouter);
 router.use('/reports', reportsRouter);
+router.use('/saved-searches', savedSearchesRouter);
