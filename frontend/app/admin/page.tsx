@@ -5,7 +5,7 @@ import Link from 'next/link';
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface Stats { subsidies: number; alerts: number; consulting: number; users: number; recentScrapes: ScrapeLog[]; }
-interface ScrapeLog { id: string; targetName: string; status: string; subsidiesFound: number; createdAt: string; }
+interface ScrapeLog { id: string; targetName: string; status: string; subsidiesFound: number; errorMessage?: string | null; createdAt: string; }
 interface ConsultingItem { id: string; name: string; email: string; company: string | null; prefecture: string | null; message: string; status: string; createdAt: string; }
 interface SubsidyItem { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; createdAt: string; }
 interface AlertItem { id: string; email: string; prefectures: string[]; categories: string[]; verified: boolean; active: boolean; createdAt: string; }
@@ -720,6 +720,24 @@ export default function AdminPage() {
               <button onClick={triggerRefreshStatus} className="btn-outline">♻️ ステータスを更新</button>
             </div>
             {scrapeMsg && <p className="mt-3 text-green-600 font-medium text-sm">{scrapeMsg}</p>}
+
+            {stats?.recentScrapes && stats.recentScrapes.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <h3 className="font-bold text-navy text-sm mb-2">直近のスクレイプ結果</h3>
+                <div className="space-y-1.5 max-h-64 overflow-auto">
+                  {stats.recentScrapes.map(s => (
+                    <div key={s.id} className="text-xs flex items-start gap-2">
+                      <span className={`badge text-[10px] flex-shrink-0 ${s.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{s.status === 'success' ? '成功' : '失敗'}</span>
+                      <div className="min-w-0">
+                        <span className="text-gray-700">{s.targetName}</span>
+                        <span className="text-gray-400"> ・{s.subsidiesFound}件 ・{new Date(s.createdAt).toLocaleString('ja-JP')}</span>
+                        {s.errorMessage && <div className="text-red-500 truncate">{s.errorMessage}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="card p-6 bg-gray-50">
             <h2 className="font-bold text-navy text-lg mb-3">自動スケジュール</h2>

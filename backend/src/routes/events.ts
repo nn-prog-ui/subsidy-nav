@@ -18,6 +18,10 @@ router.post('/', async (req: Request, res: Response) => {
       keyword: keyword ? String(keyword).slice(0, 100) : null,
     },
   }).catch(() => {});
+  // 閲覧イベントは補助金の累計閲覧数を加算
+  if (type === 'view' && subsidyId) {
+    prisma.subsidy.updateMany({ where: { id: subsidyId }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+  }
 });
 
 export default router;

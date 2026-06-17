@@ -11,6 +11,29 @@ function createTransporter() {
   });
 }
 
+/**
+ * 共通メールレイアウト。ブランドヘッダー＋本文コンテナ＋フッターで統一する。
+ * @param contentHtml 本文HTML（h2/p/a 等）
+ * @param footerNote フッターに追記する補足（配信停止リンク等、任意）
+ */
+function emailLayout(contentHtml: string, footerNote?: string): string {
+  const site = process.env.FRONTEND_URL || 'https://subsidy-nav.jp';
+  return `
+  <div style="background:#f3f4f6;padding:24px 0;font-family:-apple-system,'Segoe UI',sans-serif">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+      <div style="background:#1e3a5f;padding:20px 24px;color:#fff">
+        <span style="font-size:18px;font-weight:bold">🏛 補助金ナビ</span>
+      </div>
+      <div style="padding:24px">${contentHtml}</div>
+      <div style="padding:16px 24px;border-top:1px solid #eee;color:#9ca3af;font-size:12px;line-height:1.6">
+        ${footerNote ? `<p style="margin:0 0 8px">${footerNote}</p>` : ''}
+        <p style="margin:0">掲載情報は変更される場合があります。申請の際は公式情報をご確認ください。</p>
+        <p style="margin:8px 0 0"><a href="${site}" style="color:#9ca3af">補助金ナビ</a> ｜ © 2024 subsidy-nav.jp</p>
+      </div>
+    </div>
+  </div>`;
+}
+
 export async function sendAlertVerificationEmail(email: string, token: string) {
   const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/alerts/verify?token=${token}`;
   const transporter = createTransporter();
@@ -18,14 +41,11 @@ export async function sendAlertVerificationEmail(email: string, token: string) {
     from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
     to: email,
     subject: '【補助金ナビ】アラート登録の確認',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#1e3a5f">補助金ナビ アラート登録確認</h2>
-        <p>アラート登録ありがとうございます。以下のボタンをクリックして登録を完了してください。</p>
-        <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">アラートを有効化する</a>
-        <p style="color:#666;font-size:12px">このメールに心当たりがない場合は無視してください。</p>
-      </div>
-    `,
+    html: emailLayout(`
+      <h2 style="color:#1e3a5f;margin-top:0">アラート登録確認</h2>
+      <p>アラート登録ありがとうございます。以下のボタンをクリックして登録を完了してください。</p>
+      <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">アラートを有効化する</a>
+    `, 'このメールに心当たりがない場合は無視してください。'),
   }).catch(err => console.error('Mail error:', err.message));
 }
 
@@ -35,15 +55,11 @@ export async function sendConsultingConfirmation(name: string, email: string) {
     from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
     to: email,
     subject: '【補助金ナビ】ご相談を受け付けました',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#1e3a5f">ご相談受付完了</h2>
-        <p>${name} 様</p>
-        <p>補助金ナビへのご相談ありがとうございます。担当者より2営業日以内にご連絡いたします。</p>
-        <hr style="border:1px solid #eee">
-        <p style="color:#666;font-size:12px">補助金ナビ｜subsidy-nav.jp</p>
-      </div>
-    `,
+    html: emailLayout(`
+      <h2 style="color:#1e3a5f;margin-top:0">ご相談受付完了</h2>
+      <p>${name} 様</p>
+      <p>補助金ナビへのご相談ありがとうございます。担当者より2営業日以内にご連絡いたします。</p>
+    `),
   }).catch(err => console.error('Mail error:', err.message));
 }
 
@@ -271,14 +287,11 @@ export async function sendVerificationEmail(email: string, token: string) {
     from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
     to: email,
     subject: '【補助金ナビ】メールアドレスの確認',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#1e3a5f">メールアドレスの確認</h2>
-        <p>補助金ナビへのご登録ありがとうございます。以下のボタンをクリックしてメール認証を完了してください。</p>
-        <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">メールアドレスを確認する</a>
-        <p style="color:#666;font-size:12px">このメールに心当たりがない場合は無視してください。</p>
-      </div>
-    `,
+    html: emailLayout(`
+      <h2 style="color:#1e3a5f;margin-top:0">メールアドレスの確認</h2>
+      <p>補助金ナビへのご登録ありがとうございます。以下のボタンをクリックしてメール認証を完了してください。</p>
+      <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">メールアドレスを確認する</a>
+    `, 'このメールに心当たりがない場合は無視してください。'),
   }).catch(err => console.error('Mail error:', err.message));
 }
 
@@ -289,13 +302,10 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
     to: email,
     subject: '【補助金ナビ】パスワードリセット',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#1e3a5f">パスワードリセット</h2>
-        <p>パスワードリセットのリクエストを受け付けました。以下のボタンをクリックして新しいパスワードを設定してください。</p>
-        <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">パスワードをリセットする</a>
-        <p style="color:#666;font-size:12px">このリンクは1時間で無効になります。このメールに心当たりがない場合は無視してください。</p>
-      </div>
-    `,
+    html: emailLayout(`
+      <h2 style="color:#1e3a5f;margin-top:0">パスワードリセット</h2>
+      <p>パスワードリセットのリクエストを受け付けました。以下のボタンをクリックして新しいパスワードを設定してください。</p>
+      <a href="${url}" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">パスワードをリセットする</a>
+    `, 'このリンクは1時間で無効になります。心当たりがない場合は無視してください。'),
   }).catch(err => console.error('Mail error:', err.message));
 }

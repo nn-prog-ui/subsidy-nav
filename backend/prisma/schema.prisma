@@ -33,12 +33,14 @@ model Subsidy {
   estimatedDays     Int?      // 申請にかかる目安日数
   applicationSteps  String[]  // 申請ステップ（順序付き）
   requiredDocuments String[]  // 必要書類
+  viewCount         Int       @default(0) // 累計閲覧数
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   @@index([prefecture])
   @@index([category])
   @@index([status])
+  @@index([viewCount])
   @@index([level])
 }
 
