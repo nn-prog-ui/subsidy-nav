@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { trackEvent } from '../../lib/events';
 import { getRecentSearches, addRecentSearch, clearRecentSearches } from '../../lib/recentSearches';
 import { buildSearchQuery, summarizeFilters } from '../../lib/searchQuery';
@@ -24,6 +24,7 @@ interface Subsidy {
 
 function SubsidiesContent() {
   const sp = useSearchParams();
+  const router = useRouter();
   const [subsidies, setSubsidies] = useState<Subsidy[]>([]);
   const [meta, setMeta] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(false);
@@ -34,13 +35,13 @@ function SubsidiesContent() {
   const [filters, setFilters] = useState({
     prefecture: sp.get('prefecture') || '',
     category: sp.get('category') || '',
-    level: '',
+    level: sp.get('level') || '',
     keyword: sp.get('keyword') || '',
-    amountMin: '',
-    amountMax: '',
-    closingSoon: false,
-    difficulty: '',
-    sort: 'newest',
+    amountMin: sp.get('amountMin') || '',
+    amountMax: sp.get('amountMax') || '',
+    closingSoon: sp.get('closingSoon') === 'true',
+    difficulty: sp.get('difficulty') || '',
+    sort: sp.get('sort') || 'newest',
     page: 1,
   });
 
@@ -76,6 +77,12 @@ function SubsidiesContent() {
 
   // 最近の検索を初期ロード
   useEffect(() => { setRecent(getRecentSearches()); }, []);
+
+  // フィルタをURLに反映（共有・ブックマーク・戻る操作に対応）
+  const queryStr = buildSearchQuery(filters);
+  useEffect(() => {
+    router.replace(queryStr ? `/subsidies?${queryStr}` : '/subsidies', { scroll: false });
+  }, [queryStr, router]);
 
   // キーワード入力に応じてサジェストを取得（デバウンス）
   useEffect(() => {
@@ -242,25 +249,38 @@ function SubsidiesContent() {
 
         {/* List */}
         <div className="lg:col-span-3">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-3">
             <p className="text-sm text-gray-500">{meta.total}件中 {subsidies.length}件を表示</p>
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-gray-500">並び替え</span>
-              <select className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40"
-                value={filters.sort} onChange={e => update('sort', e.target.value)}>
-                <option value="newest">新着順</option>
-                <option value="amount_desc">補助額が高い順</option>
-                <option value="amount_asc">補助額が低い順</option>
-                <option value="deadline">締切が近い順</option>
-              </select>
-            </label>
+            <div className="flex items-center gap-3">
+              <button onClick={() => { navigator.clipboard?.writeText(window.location.href); toast('検索結果のリンクをコピーしました', 'success'); }}
+                className="text-sm text-gray-500 hover:text-navy" title="この検索結果を共有">🔗 共有</button>
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500">並び替え</span>
+                <select className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40"
+                  value={filters.sort} onChange={e => update('sort', e.target.value)}>
+                  <option value="newest">新着順</option>
+                  <option value="amount_desc">補助額が高い順</option>
+                  <option value="amount_asc">補助額が低い順</option>
+                  <option value="deadline">締切が近い順</option>
+                </select>
+              </label>
+            </div>
           </div>
           {loading ? (
             <div className="text-center py-16 text-gray-400">読み込み中...</div>
           ) : subsidies.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
+            <div className="text-center py-16">
               <div className="text-5xl mb-4">🔍</div>
-              <p>条件に合う補助金が見つかりませんでした</p>
+              <p className="text-gray-500 mb-1">条件に合う補助金が見つかりませんでした</p>
+              <p className="text-sm text-gray-400 mb-6">条件を変える、または人気カテゴリから探してみてください。</p>
+              <button onClick={() => setFilters({ prefecture: '', category: '', level: '', keyword: '', amountMin: '', amountMax: '', closingSoon: false, difficulty: '', sort: 'newest', page: 1 })}
+                className="btn-primary text-sm mb-6">条件をリセットして全件表示</button>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {CATEGORIES.slice(0, 8).map(c => (
+                  <button key={c} onClick={() => setFilters({ prefecture: '', category: c, level: '', keyword: '', amountMin: '', amountMax: '', closingSoon: false, difficulty: '', sort: 'newest', page: 1 })}
+                    className="bg-gray-100 hover:bg-navy hover:text-white px-3 py-1.5 rounded-full text-xs transition-colors">{c}</button>
+                ))}
+              </div>
             </div>
           ) : (
             <>

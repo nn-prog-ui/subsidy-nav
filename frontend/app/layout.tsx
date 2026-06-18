@@ -5,6 +5,7 @@ import NavAuthLinks from './NavAuthLinks';
 import AnnouncementBanner from './AnnouncementBanner';
 import ServiceWorkerRegister from './ServiceWorkerRegister';
 import { Toaster } from './Toaster';
+import MobileMenu from './MobileMenu';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
 
@@ -102,9 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/consulting" className="bg-accent text-white px-4 py-1.5 rounded-full hover:bg-orange-600 transition-colors">無料相談</Link>
               <NavAuthLinks />
             </div>
-            <div className="md:hidden">
-              <Link href="/subsidies" className="text-sm bg-accent px-3 py-1.5 rounded-full">補助金を探す</Link>
-            </div>
+            <MobileMenu />
           </nav>
         </header>
         <main id="main-content" className="min-h-screen">{children}</main>
