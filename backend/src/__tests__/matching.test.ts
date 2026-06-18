@@ -51,4 +51,17 @@ describe('scoreSubsidy', () => {
   it('業種マッピングに観光カテゴリが含まれる', () => {
     expect(INDUSTRY_CATEGORY_MAP['観光・宿泊']).toContain('観光・まちづくり');
   });
+
+  it('難易度easyは加点と理由が付く', () => {
+    const easy = scoreSubsidy(cand({ difficulty: 'easy' }), baseCtx);
+    const none = scoreSubsidy(cand({ difficulty: null }), baseCtx);
+    expect(easy.score).toBeGreaterThan(none.score);
+    expect(easy.reasons).toContain('申請しやすい');
+  });
+
+  it('難易度hardは減点される', () => {
+    const hard = scoreSubsidy(cand({ difficulty: 'hard' }), baseCtx).score;
+    const none = scoreSubsidy(cand({ difficulty: null }), baseCtx).score;
+    expect(hard).toBeLessThan(none);
+  });
 });

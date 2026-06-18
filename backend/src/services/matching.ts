@@ -20,6 +20,7 @@ export interface MatchCandidate {
   targetType: string;
   maxAmount: bigint | number | null;
   applicationEnd: Date | null;
+  difficulty?: string | null;
 }
 
 export interface MatchContext {
@@ -62,6 +63,10 @@ export function scoreSubsidy(s: MatchCandidate, ctx: MatchContext): { score: num
   } else if (s.maxAmount && Number(s.maxAmount) >= 1000000) {
     score += 4;
   }
+
+  // 申請のしやすさ（難易度）を加味
+  if (s.difficulty === 'easy') { score += 8; reasons.push('申請しやすい'); }
+  else if (s.difficulty === 'hard') { score -= 4; }
 
   // 申請締切による調整
   if (s.applicationEnd) {

@@ -88,6 +88,15 @@ export default function MatchingPage() {
                     )}
                   </div>
                   <h3 className="font-bold text-navy group-hover:text-navy-light">{s.title}</h3>
+                  {typeof s.matchScore === 'number' && (
+                    <div className="mt-2 flex items-center gap-2" aria-hidden="true">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[200px]">
+                        <div className={`h-full rounded-full ${s.matchScore >= 70 ? 'bg-green-500' : s.matchScore >= 40 ? 'bg-yellow-400' : 'bg-gray-300'}`}
+                          style={{ width: `${s.matchScore}%` }} />
+                      </div>
+                      <span className="text-xs text-gray-400">{s.matchScore}%</span>
+                    </div>
+                  )}
                   {s.reasons && s.reasons.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {s.reasons.map(r => (
