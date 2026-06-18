@@ -302,7 +302,8 @@ export default function MyPage() {
       {/* 保存した検索条件 */}
       {savedSearches.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-xl font-bold text-navy mb-4">保存した検索条件</h2>
+          <h2 className="text-xl font-bold text-navy mb-1">保存した検索条件</h2>
+          <p className="text-sm text-gray-500 mb-4">🔔 保存した条件にマッチする新着補助金が追加されると、メールでお知らせします。</p>
           <div className="flex flex-wrap gap-2">
             {savedSearches.map(s => (
               <div key={s.id} className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full pl-3 pr-1.5 py-1">

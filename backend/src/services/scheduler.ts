@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { runScrape } from './scraper';
-import { sendWeeklyDigest, sendDeadlineAlerts, sendAnalyticsReport, sendProgressDeadlineReminders } from './email';
+import { sendWeeklyDigest, sendDeadlineAlerts, sendAnalyticsReport, sendProgressDeadlineReminders, sendSavedSearchAlerts } from './email';
 import { notifyScrapeComplete, notifyDeadlineSoon } from './notify';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from './maintenance';
 import { prisma } from '../lib/prisma';
@@ -29,6 +29,12 @@ export function startScheduler() {
     await sendAnalyticsReport().catch(console.error);
   }, { timezone: 'Asia/Tokyo' });
 
+  // 毎週月曜 AM8:20 JST 保存検索の新着マッチ通知
+  cron.schedule('20 8 * * 1', async () => {
+    console.log('[Scheduler] Sending saved-search alerts...');
+    await sendSavedSearchAlerts().catch(console.error);
+  }, { timezone: 'Asia/Tokyo' });
+
   // 毎日 AM6:00 JST ステータス自動更新（締切超過→closed / 開始→active）
   cron.schedule('0 6 * * *', async () => {
     console.log('[Scheduler] Updating subsidy statuses...');
@@ -51,5 +57,5 @@ export function startScheduler() {
     }
   }, { timezone: 'Asia/Tokyo' });
 
-  console.log('[Scheduler] Jobs scheduled: scrape(Mon 2am), digest(Mon 8am), analytics-report(Mon 8:10am), status-update(daily 6am), deadline-alerts(daily 9am)');
+  console.log('[Scheduler] Jobs scheduled: scrape(Mon 2am), digest(Mon 8am), analytics-report(Mon 8:10am), saved-search-alerts(Mon 8:20am), status-update(daily 6am), deadline-alerts(daily 9am)');
 }

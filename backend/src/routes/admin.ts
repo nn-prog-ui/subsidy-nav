@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { parse as csvParse } from 'csv-parse/sync';
 import { requireAdmin } from '../middleware/auth';
 import { runScrape } from '../services/scraper';
-import { sendAnalyticsReport } from '../services/email';
+import { sendAnalyticsReport, sendSavedSearchAlerts } from '../services/email';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/maintenance';
 import { findDuplicateGroups } from '../utils/duplicates';
 import { invalidateCache } from '../middleware/cache';
@@ -53,6 +53,11 @@ router.post('/scrape', requireAdmin, async (_req: Request, res: Response) => {
 router.post('/report/send', requireAdmin, async (_req: Request, res: Response) => {
   res.json({ message: '週次分析レポートを送信しました（ADMIN_EMAIL宛）' });
   sendAnalyticsReport().catch(console.error);
+});
+
+router.post('/saved-search-alerts/send', requireAdmin, async (_req: Request, res: Response) => {
+  res.json({ message: '保存検索の新着通知を送信しました' });
+  sendSavedSearchAlerts().catch(console.error);
 });
 
 router.post('/subsidies/refresh-status', requireAdmin, async (_req: Request, res: Response) => {

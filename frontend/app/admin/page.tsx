@@ -151,6 +151,13 @@ export default function AdminPage() {
     setTimeout(() => setScrapeMsg(''), 6000);
   };
 
+  const triggerSavedSearchAlerts = async () => {
+    const res = await fetch(`${API}/api/admin/saved-search-alerts/send`, { method: 'POST', headers: headers() });
+    const json = await res.json();
+    setScrapeMsg(json.message);
+    setTimeout(() => setScrapeMsg(''), 6000);
+  };
+
   const triggerRefreshStatus = async () => {
     const res = await fetch(`${API}/api/admin/subsidies/refresh-status`, { method: 'POST', headers: headers() });
     const json = await res.json();
@@ -717,6 +724,7 @@ export default function AdminPage() {
             <div className="flex flex-wrap gap-3">
               <button onClick={triggerScrape} className="btn-primary">🔄 スクレイピングを開始</button>
               <button onClick={triggerReport} className="btn-outline">📊 分析レポートを送信</button>
+              <button onClick={triggerSavedSearchAlerts} className="btn-outline">🔔 保存検索の新着通知</button>
               <button onClick={triggerRefreshStatus} className="btn-outline">♻️ ステータスを更新</button>
             </div>
             {scrapeMsg && <p className="mt-3 text-green-600 font-medium text-sm">{scrapeMsg}</p>}
@@ -746,6 +754,7 @@ export default function AdminPage() {
                 { time: '毎週月曜 AM2:00 JST', desc: '全54自治体の自動スクレイピング', color: 'bg-blue-100 text-blue-700' },
                 { time: '毎週月曜 AM8:00 JST', desc: '週次ダイジェストメール（ADMIN_EMAIL宛）', color: 'bg-green-100 text-green-700' },
                 { time: '毎週月曜 AM8:10 JST', desc: '週次分析レポートメール（ADMIN_EMAIL宛）', color: 'bg-teal-100 text-teal-700' },
+                { time: '毎週月曜 AM8:20 JST', desc: '保存検索にマッチする新着補助金の通知（会員宛）', color: 'bg-pink-100 text-pink-700' },
                 { time: '毎日 AM6:00 JST', desc: 'ステータス自動更新（締切超過→closed / 開始→active）', color: 'bg-purple-100 text-purple-700' },
                 { time: '毎日 AM9:00 JST', desc: '締切3日前アラートメール（登録ユーザー宛）', color: 'bg-orange-100 text-orange-700' },
               ].map(s => (

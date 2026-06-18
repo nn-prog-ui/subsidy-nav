@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { prisma } from '../lib/prisma';
+import { matchesSavedSearch } from '../utils/match';
 
 
 function createTransporter() {
@@ -193,6 +194,52 @@ export async function sendProgressDeadlineReminders() {
     }).catch(err => console.error('Progress reminder error:', err.message));
   }
   console.log(`Progress deadline reminders sent to ${byUser.size} users`);
+}
+
+export async function sendSavedSearchAlerts() {
+  // 直近7日の新着補助金が、ユーザーの保存検索にマッチしたら通知する
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const newSubsidies = await prisma.subsidy.findMany({ where: { status: 'active', createdAt: { gte: since } } });
+  if (newSubsidies.length === 0) return;
+
+  const users = await prisma.user.findMany({
+    where: { emailVerified: true, savedSearches: { some: {} } },
+    include: { savedSearches: true },
+  });
+  if (users.length === 0) return;
+
+  const site = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const transporter = createTransporter();
+  let sent = 0;
+
+  for (const u of users) {
+    const matched = new Map<string, typeof newSubsidies[number]>();
+    for (const ss of u.savedSearches) {
+      for (const s of newSubsidies) {
+        if (matchesSavedSearch(s as any, ss.query)) matched.set(s.id, s);
+      }
+    }
+    if (matched.size === 0) continue;
+
+    const rows = [...matched.values()].slice(0, 20).map(s => `
+      <li style="margin-bottom:6px">
+        <a href="${site}/subsidies/${s.id}" style="color:#1e3a5f;font-weight:bold">${s.title}</a>
+        <span style="color:#888">（${s.prefecture}・${s.category}${s.maxAmount ? ` / 上限¥${Number(s.maxAmount).toLocaleString()}` : ''}）</span>
+      </li>`).join('');
+
+    await transporter.sendMail({
+      from: `"補助金ナビ" <${process.env.SMTP_USER || 'noreply@subsidy-nav.jp'}>`,
+      to: u.email,
+      subject: `【補助金ナビ】保存した条件に合う新着補助金が${matched.size}件あります`,
+      html: emailLayout(`
+        <h2 style="color:#1e3a5f;margin-top:0">保存した条件に合う新着補助金</h2>
+        <p>あなたが保存した検索条件にマッチする補助金が新たに追加されました。</p>
+        <ul style="line-height:1.7;padding-left:18px">${rows}</ul>
+      `, `この通知は保存した検索条件に基づいています。<a href="${site}/mypage" style="color:#9ca3af">マイページ</a>で条件を管理・削除できます。`),
+    }).catch(err => console.error('Saved-search alert error:', err.message));
+    sent++;
+  }
+  console.log(`Saved-search alerts sent to ${sent} users`);
 }
 
 export async function sendAnalyticsReport() {
