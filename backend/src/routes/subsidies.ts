@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { generateSubsidyPdf } from '../services/pdf';
 import { cacheMiddleware } from '../middleware/cache';
 import { buildTsQuery, expandSynonyms, pickTitleSuggestions } from '../utils/search';
+import { buildIcsEvent } from '../utils/ics';
 
 const router = Router();
 
@@ -286,6 +287,24 @@ router.get('/:id/pdf', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="subsidy_${subsidy.id}.pdf"`);
   generateSubsidyPdf(subsidy as any).pipe(res);
+});
+
+// 申請締切を全日イベントとしてICS（カレンダー）出力
+router.get('/:id/ics', async (req: Request, res: Response) => {
+  const subsidy = await prisma.subsidy.findUnique({ where: { id: req.params.id } });
+  if (!subsidy) return res.status(404).json({ error: 'Not found' });
+  if (!subsidy.applicationEnd) return res.status(404).json({ error: '締切が設定されていません' });
+
+  const ics = buildIcsEvent({
+    uid: `${subsidy.id}@subsidy-nav.jp`,
+    title: `【締切】${subsidy.title}`,
+    date: subsidy.applicationEnd,
+    url: subsidy.applicationUrl,
+    description: `${subsidy.prefecture}・${subsidy.category}の補助金の申請締切日です。詳細: ${process.env.FRONTEND_URL || 'https://subsidy-nav.jp'}/subsidies/${subsidy.id}`,
+  });
+  res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="subsidy_${subsidy.id}.ics"`);
+  res.send(ics);
 });
 
 export default router;

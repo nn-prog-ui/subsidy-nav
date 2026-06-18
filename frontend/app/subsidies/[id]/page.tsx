@@ -203,6 +203,10 @@ export default async function SubsidyDetailPage({ params }: { params: { id: stri
           )}
           <a href={`${API}/api/subsidies/${subsidy.id}/pdf`} target="_blank" rel="noopener noreferrer"
             className="btn-outline text-center">📄 PDF でダウンロード</a>
+          {subsidy.applicationEnd && (
+            <a href={`${API}/api/subsidies/${subsidy.id}/ics`}
+              className="btn-outline text-center">📅 締切をカレンダーに追加</a>
+          )}
           <Link href="/matching" className="btn-outline text-center">🎯 診断で類似を探す</Link>
           <FavoriteButton subsidyId={subsidy.id} />
         </div>
