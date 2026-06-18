@@ -75,7 +75,10 @@ export default async function CategoryPage({ params }: { params: { category: str
         <Link href="/categories" className="hover:underline">カテゴリ一覧</Link> ＞ {cat}
       </nav>
       <h1 className="text-3xl font-bold text-navy mb-2">{cat}の補助金・助成金</h1>
-      <p className="text-gray-500 mb-8">全{result.total}件のうち最新{result.data.length}件を表示しています。</p>
+      <div className="flex items-center justify-between mb-8">
+        <p className="text-gray-500">全{result.total}件のうち最新{result.data.length}件を表示しています。</p>
+        <a href={`${API}/api/subsidies/feed?category=${encodeURIComponent(cat)}`} className="text-sm text-navy hover:underline whitespace-nowrap">📡 RSS</a>
+      </div>
 
       {result.data.length === 0 ? (
         <div className="card p-12 text-center text-gray-400">

@@ -8,6 +8,7 @@ import { Toaster } from './Toaster';
 import MobileMenu from './MobileMenu';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subsidy-nav.jp';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -33,7 +34,10 @@ export const metadata: Metadata = {
     description: '国・都道府県・市区町村の補助金・助成金を一元検索。',
   },
   robots: { index: true, follow: true },
-  alternates: { canonical: BASE_URL },
+  alternates: {
+    canonical: BASE_URL,
+    types: { 'application/rss+xml': `${API_URL}/api/subsidies/feed` },
+  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -123,6 +127,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <li><Link href="/compare" className="hover:text-white">補助金比較</Link></li>
                 <li><Link href="/analytics" className="hover:text-white">データ分析</Link></li>
                 <li><Link href="/alerts" className="hover:text-white">アラート登録</Link></li>
+                <li><a href={`${API_URL}/api/subsidies/feed`} className="hover:text-white">新着RSS</a></li>
               </ul>
             </div>
             <div>

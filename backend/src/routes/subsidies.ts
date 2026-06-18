@@ -5,6 +5,7 @@ import { generateSubsidyPdf } from '../services/pdf';
 import { cacheMiddleware } from '../middleware/cache';
 import { buildTsQuery, expandSynonyms, pickTitleSuggestions } from '../utils/search';
 import { buildIcsEvent } from '../utils/ics';
+import { buildRssFeed } from '../utils/rss';
 
 const router = Router();
 
@@ -139,6 +140,30 @@ router.get('/analytics', cacheMiddleware(600), async (_req: Request, res: Respon
       deadlineSoon: deadlineCount,
     },
   });
+});
+
+// 新着補助金のRSSフィード（任意で category 絞り込み）
+router.get('/feed', cacheMiddleware(600), async (req: Request, res: Response) => {
+  const category = (req.query.category as string) || undefined;
+  const site = process.env.FRONTEND_URL || 'https://subsidy-nav.jp';
+  const rows = await prisma.subsidy.findMany({
+    where: { status: 'active', ...(category ? { category } : {}) },
+    take: 30, orderBy: { createdAt: 'desc' },
+  });
+  const xml = buildRssFeed({
+    title: category ? `補助金ナビ 新着（${category}）` : '補助金ナビ 新着の補助金',
+    link: category ? `${site}/categories/${encodeURIComponent(category)}` : `${site}/subsidies`,
+    description: '国・都道府県・市区町村の新着補助金・助成金',
+    items: rows.map(s => ({
+      title: s.title,
+      link: `${site}/subsidies/${s.id}`,
+      guid: s.id,
+      pubDate: s.createdAt,
+      description: `${s.prefecture}・${s.category}${s.maxAmount ? ` / 上限¥${Number(s.maxAmount).toLocaleString()}` : ''}`,
+    })),
+  });
+  res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8');
+  res.send(xml);
 });
 
 // 検索サジェスト（タイトル候補 + 人気キーワード）
