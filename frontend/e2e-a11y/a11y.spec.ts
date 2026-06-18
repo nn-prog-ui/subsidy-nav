@@ -27,3 +27,6 @@ test('比較ページ a11y', async ({ page }) => { await scan(page, '/compare');
 test('アラート登録 a11y', async ({ page }) => { await scan(page, '/alerts'); });
 test('無料相談 a11y', async ({ page }) => { await scan(page, '/consulting'); });
 test('カレンダー a11y', async ({ page }) => { await scan(page, '/calendar'); });
+test('このサイトについて a11y', async ({ page }) => { await scan(page, '/about'); });
+test('FAQ a11y', async ({ page }) => { await scan(page, '/faq'); });
+test('利用規約 a11y', async ({ page }) => { await scan(page, '/terms'); });

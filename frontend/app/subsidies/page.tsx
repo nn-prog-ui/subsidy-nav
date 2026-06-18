@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { trackEvent } from '../../lib/events';
@@ -31,6 +31,7 @@ function SubsidiesContent() {
   const [suggest, setSuggest] = useState<{ titles: string[]; keywords: string[] }>({ titles: [], keywords: [] });
   const [recent, setRecent] = useState<string[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
   const suggestBoxRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState({
     prefecture: sp.get('prefecture') || '',
@@ -86,6 +87,7 @@ function SubsidiesContent() {
 
   // キーワード入力に応じてサジェストを取得（デバウンス）
   useEffect(() => {
+    setActiveIdx(-1);
     const q = filters.keyword.trim();
     if (q.length < 1) { setSuggest({ titles: [], keywords: [] }); return; }
     const t = setTimeout(() => {
@@ -111,6 +113,23 @@ function SubsidiesContent() {
   const applyKeyword = (kw: string) => {
     setFilters(f => ({ ...f, keyword: kw, page: 1 }));
     setShowSuggest(false);
+    setActiveIdx(-1);
+  };
+
+  // サジェスト候補（キーワード未入力時は最近の検索、入力時はタイトル+人気語）
+  const suggestOptions = filters.keyword.trim() === '' ? recent : [...suggest.titles, ...suggest.keywords];
+
+  const onKeywordKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggest || suggestOptions.length === 0) {
+      if (e.key === 'Enter') { setShowSuggest(false); fetchSubsidies(); }
+      return;
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, suggestOptions.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)); }
+    else if (e.key === 'Enter') {
+      if (activeIdx >= 0 && suggestOptions[activeIdx]) { e.preventDefault(); applyKeyword(suggestOptions[activeIdx]); }
+      else { setShowSuggest(false); fetchSubsidies(); }
+    } else if (e.key === 'Escape') { setShowSuggest(false); setActiveIdx(-1); }
   };
 
   const saveSearch = async () => {
@@ -141,39 +160,33 @@ function SubsidiesContent() {
               <input id="f-keyword" className="input" placeholder="例：IT導入 創業" value={filters.keyword}
                 onChange={e => update('keyword', e.target.value)}
                 onFocus={() => setShowSuggest(true)}
-                onKeyDown={e => { if (e.key === 'Enter') { setShowSuggest(false); fetchSubsidies(); } }}
-                role="combobox" aria-expanded={showSuggest} aria-autocomplete="list" aria-label="キーワード検索" />
-              {showSuggest && (suggest.titles.length > 0 || suggest.keywords.length > 0 || (filters.keyword.trim() === '' && recent.length > 0)) && (
-                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto text-sm">
-                  {filters.keyword.trim() === '' && recent.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between px-3 py-1.5 text-xs text-gray-400 border-b border-gray-50">
-                        <span>最近の検索</span>
-                        <button onClick={() => { clearRecentSearches(); setRecent([]); }} className="hover:text-red-500">消去</button>
-                      </div>
-                      {recent.map(r => (
-                        <button key={r} onClick={() => applyKeyword(r)}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2">
-                          <span className="text-gray-300">🕘</span>{r}
-                        </button>
-                      ))}
-                    </div>
+                onKeyDown={onKeywordKeyDown}
+                role="combobox" aria-expanded={showSuggest} aria-controls="suggest-listbox" aria-autocomplete="list"
+                aria-activedescendant={activeIdx >= 0 ? `suggest-opt-${activeIdx}` : undefined} aria-label="キーワード検索" />
+              {showSuggest && suggestOptions.length > 0 && (
+                <ul id="suggest-listbox" role="listbox" aria-label="検索候補"
+                  className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto text-sm">
+                  {filters.keyword.trim() === '' && (
+                    <li className="flex items-center justify-between px-3 py-1.5 text-xs text-gray-400 border-b border-gray-50">
+                      <span>最近の検索</span>
+                      <button onClick={() => { clearRecentSearches(); setRecent([]); }} className="hover:text-red-500">消去</button>
+                    </li>
                   )}
-                  {suggest.titles.map(t => (
-                    <button key={`t-${t}`} onClick={() => applyKeyword(t)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50 line-clamp-1">{t}</button>
-                  ))}
-                  {suggest.keywords.length > 0 && (
-                    <div className="border-t border-gray-50">
-                      {suggest.keywords.map(k => (
-                        <button key={`k-${k}`} onClick={() => applyKeyword(k)}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-600">
-                          <span className="text-gray-300">🔍</span>{k}
+                  {suggestOptions.map((opt, i) => {
+                    const isKeyword = filters.keyword.trim() !== '' && i >= suggest.titles.length;
+                    const isRecent = filters.keyword.trim() === '';
+                    return (
+                      <li key={`${i}-${opt}`} id={`suggest-opt-${i}`} role="option" aria-selected={activeIdx === i}>
+                        <button onClick={() => applyKeyword(opt)} onMouseEnter={() => setActiveIdx(i)}
+                          className={`w-full text-left px-3 py-2 flex items-center gap-2 ${activeIdx === i ? 'bg-navy/10' : 'hover:bg-gray-50'} ${isKeyword ? 'text-gray-600' : ''}`}>
+                          {isRecent && <span className="text-gray-300">🕘</span>}
+                          {isKeyword && <span className="text-gray-300">🔍</span>}
+                          <span className="line-clamp-1">{opt}</span>
                         </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </div>
             <div>
