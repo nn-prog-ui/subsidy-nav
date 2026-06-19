@@ -66,6 +66,7 @@ export default function AdminPage() {
   const [dupsLoading, setDupsLoading] = useState(false);
   const [subPage, setSubPage] = useState(1);
   const [subKeyword, setSubKeyword] = useState('');
+  const [guidingId, setGuidingId] = useState<string | null>(null);
   const [subMeta, setSubMeta] = useState({ total: 0, pages: 1 });
   const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '', difficulty: '', estimatedDays: '' });
 
@@ -181,6 +182,20 @@ export default function AdminPage() {
   const updateSubsidyStatus = async (id: string, status: string) => {
     await fetch(`${API}/api/admin/subsidies/${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status }) });
     setSubsidies(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+  };
+
+  const generateGuide = async (id: string) => {
+    setGuidingId(id);
+    try {
+      const res = await fetch(`${API}/api/admin/subsidies/${id}/guide`, { method: 'POST', headers: headers() });
+      const json = await res.json();
+      setScrapeMsg(res.ok ? `✅ ${json.message}` : `⚠️ ${json.error || 'ガイド生成に失敗しました'}`);
+    } catch {
+      setScrapeMsg('⚠️ ガイド生成リクエストに失敗しました');
+    } finally {
+      setGuidingId(null);
+      setTimeout(() => setScrapeMsg(''), 8000);
+    }
   };
 
   const deleteSubsidy = async (id: string) => {
@@ -330,6 +345,9 @@ export default function AdminPage() {
       {/* Subsidies Tab */}
       {tab === 'subsidies' && (
         <div>
+          {scrapeMsg && (
+            <div className="mb-4 p-3 rounded-lg bg-navy/5 border border-navy/15 text-sm text-navy">{scrapeMsg}</div>
+          )}
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
               <input
@@ -477,7 +495,13 @@ export default function AdminPage() {
                       </select>
                     </td>
                     <td className="px-3 py-2.5">
-                      <button onClick={() => deleteSubsidy(s.id)} className="text-xs text-red-500 hover:text-red-700">削除</button>
+                      <div className="flex gap-2 items-center">
+                        <button onClick={() => generateGuide(s.id)} disabled={guidingId === s.id}
+                          className="text-xs text-navy hover:underline disabled:opacity-50 whitespace-nowrap">
+                          {guidingId === s.id ? '生成中…' : '🤖 AIガイド'}
+                        </button>
+                        <button onClick={() => deleteSubsidy(s.id)} className="text-xs text-red-500 hover:text-red-700">削除</button>
+                      </div>
                     </td>
                   </tr>
                 ))}

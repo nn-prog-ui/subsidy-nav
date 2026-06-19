@@ -23,6 +23,15 @@ interface SubsidyDetail {
   difficulty: string | null; estimatedDays: number | null;
   applicationSteps: string[]; requiredDocuments: string[];
   source: string | null;
+  applicationGuide?: {
+    overview: string;
+    writingTips: string[];
+    preparation: string[];
+    schedule: string[];
+    disbursementDays: number | null;
+    pitfalls: string[];
+    generatedAt: string;
+  } | null;
 }
 
 const DIFFICULTY: Record<string, { label: string; color: string }> = {
@@ -184,6 +193,67 @@ export default async function SubsidyDetailPage({ params }: { params: { id: stri
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {subsidy.applicationGuide && (
+          <div className="mb-6 p-5 bg-gradient-to-br from-navy/5 to-accent/5 border border-navy/15 rounded-xl">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="badge bg-navy text-white">🤖 AI申請ガイド</span>
+              <span className="text-xs text-gray-500">補助金コンサルによる申請の手引き</span>
+            </div>
+            <p className="text-gray-700 leading-relaxed mb-4">{subsidy.applicationGuide.overview}</p>
+
+            {subsidy.applicationGuide.disbursementDays != null && (
+              <div className="inline-block mb-4 px-4 py-2 bg-white rounded-lg border border-gray-100">
+                <span className="text-xs text-gray-500">入金までの想定日数</span>
+                <span className="ml-2 text-lg font-bold text-navy">約{subsidy.applicationGuide.disbursementDays}日</span>
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-5">
+              {subsidy.applicationGuide.writingTips.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-navy text-sm mb-2">✍️ 申請書の書き方</h3>
+                  <ul className="space-y-1.5">
+                    {subsidy.applicationGuide.writingTips.map((t, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex gap-2"><span className="text-accent mt-0.5">›</span><span>{t}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {subsidy.applicationGuide.preparation.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-navy text-sm mb-2">📋 準備するもの</h3>
+                  <ul className="space-y-1.5">
+                    {subsidy.applicationGuide.preparation.map((t, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex gap-2"><span className="text-green-600 mt-0.5">☑</span><span>{t}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {subsidy.applicationGuide.schedule.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-navy text-sm mb-2">🗓 想定スケジュール</h3>
+                  <ol className="space-y-1.5">
+                    {subsidy.applicationGuide.schedule.map((t, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex gap-2"><span className="text-navy font-semibold">{i + 1}.</span><span>{t}</span></li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {subsidy.applicationGuide.pitfalls.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-navy text-sm mb-2">⚠️ よくある注意点</h3>
+                  <ul className="space-y-1.5">
+                    {subsidy.applicationGuide.pitfalls.map((t, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex gap-2"><span className="text-red-500 mt-0.5">•</span><span>{t}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-4">※ AIが補助金情報をもとに生成した参考情報です。最新の公式要領を必ずご確認ください。</p>
           </div>
         )}
 

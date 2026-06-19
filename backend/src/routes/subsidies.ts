@@ -286,7 +286,10 @@ router.get('/reco/personalized', async (req: Request, res: Response) => {
 });
 
 router.get('/:id', async (req: Request, res: Response) => {
-  const data = await prisma.subsidy.findUnique({ where: { id: req.params.id } });
+  const data = await prisma.subsidy.findUnique({
+    where: { id: req.params.id },
+    include: { applicationGuide: true },
+  });
   if (!data) return res.status(404).json({ error: 'Not found' });
 
   // Related subsidies: same category + prefecture

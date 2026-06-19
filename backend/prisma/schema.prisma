@@ -36,6 +36,7 @@ model Subsidy {
   viewCount         Int       @default(0) // 累計閲覧数
   source            String?   // 取り込み元（例: jgrants / manual / scrape）
   sourceId          String?   @unique // 取り込み元での一意ID（再取り込み時のupsertキー）
+  applicationGuide  ApplicationGuide? // AIが生成した申請ガイド（コンサル納品物）
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -44,6 +45,21 @@ model Subsidy {
   @@index([status])
   @@index([viewCount])
   @@index([level])
+}
+
+// Phase 31: AIが生成する申請ガイド（コンサル納品物）。補助金1件につき最新版を1件保持。
+model ApplicationGuide {
+  id               String   @id @default(cuid())
+  subsidyId        String   @unique
+  subsidy          Subsidy  @relation(fields: [subsidyId], references: [id], onDelete: Cascade)
+  overview         String                // 総評・採択のポイント
+  writingTips      String[]              // 申請書の書き方のコツ
+  preparation      String[]              // 事前に準備すべき書類・体制
+  schedule         String[]              // 申請〜入金の想定スケジュール
+  disbursementDays Int?                  // 申請から入金までの想定日数
+  pitfalls         String[]              // よくある不採択理由・注意点
+  model            String                // 生成に使用したモデル
+  generatedAt      DateTime @default(now())
 }
 
 model Alert {

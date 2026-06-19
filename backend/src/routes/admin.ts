@@ -8,6 +8,7 @@ import { runScrape } from '../services/scraper';
 import { sendAnalyticsReport, sendSavedSearchAlerts } from '../services/email';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/maintenance';
 import { importFromJGrants } from '../services/importJgrants';
+import { generateApplicationGuide, GuideError } from '../services/applicationGuide';
 import { findDuplicateGroups } from '../utils/duplicates';
 import { invalidateCache } from '../middleware/cache';
 
@@ -66,6 +67,18 @@ router.post('/import/jgrants', requireAdmin, async (req: Request, res: Response)
   importFromJGrants()
     .then(r => recordAudit(req, 'create', 'subsidy', undefined, `jGrants取り込み 新規${r.imported}/更新${r.updated}`))
     .catch(console.error);
+});
+
+// Phase 31: 補助金1件のAI申請ガイドを生成（同期。完了後にガイドを返す）
+router.post('/subsidies/:id/guide', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const guide = await generateApplicationGuide(req.params.id);
+    await recordAudit(req, 'create', 'guide', req.params.id, 'AI申請ガイド生成');
+    res.json({ message: 'AI申請ガイドを生成しました', guide });
+  } catch (e: any) {
+    const status = e instanceof GuideError ? e.statusCode : 500;
+    res.status(status).json({ error: e.message || 'ガイド生成に失敗しました' });
+  }
 });
 
 router.post('/subsidies/refresh-status', requireAdmin, async (_req: Request, res: Response) => {
