@@ -22,6 +22,7 @@ interface SubsidyDetail {
   requirements: string | null; notes: string | null; municipalityName: string | null; status: string;
   difficulty: string | null; estimatedDays: number | null;
   applicationSteps: string[]; requiredDocuments: string[];
+  source: string | null;
 }
 
 const DIFFICULTY: Record<string, { label: string; color: string }> = {
@@ -211,8 +212,11 @@ export default async function SubsidyDetailPage({ params }: { params: { id: stri
           <FavoriteButton subsidyId={subsidy.id} />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex items-center justify-between gap-3">
           <ReportForm subsidyId={subsidy.id} />
+          {subsidy.source === 'jgrants' && (
+            <span className="text-xs text-gray-400">出典: Jグランツ（経済産業省）</span>
+          )}
         </div>
       </div>
 

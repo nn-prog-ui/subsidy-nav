@@ -3,6 +3,7 @@ import { runScrape } from './scraper';
 import { sendWeeklyDigest, sendDeadlineAlerts, sendAnalyticsReport, sendProgressDeadlineReminders, sendSavedSearchAlerts } from './email';
 import { notifyScrapeComplete, notifyDeadlineSoon } from './notify';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from './maintenance';
+import { importFromJGrants } from './importJgrants';
 import { prisma } from '../lib/prisma';
 
 
@@ -15,6 +16,12 @@ export function startScheduler() {
       (log as any)?.success ?? 0,
       (log as any)?.failed ?? 0
     );
+  }, { timezone: 'Asia/Tokyo' });
+
+  // 毎週月曜 AM3:00 JST Jグランツ公式APIから取り込み
+  cron.schedule('0 3 * * 1', async () => {
+    console.log('[Scheduler] Importing from jGrants...');
+    await importFromJGrants().catch(console.error);
   }, { timezone: 'Asia/Tokyo' });
 
   // 毎週月曜 AM8:00 JST 週次ダイジェスト
@@ -57,5 +64,5 @@ export function startScheduler() {
     }
   }, { timezone: 'Asia/Tokyo' });
 
-  console.log('[Scheduler] Jobs scheduled: scrape(Mon 2am), digest(Mon 8am), analytics-report(Mon 8:10am), saved-search-alerts(Mon 8:20am), status-update(daily 6am), deadline-alerts(daily 9am)');
+  console.log('[Scheduler] Jobs scheduled: scrape(Mon 2am), jgrants-import(Mon 3am), digest(Mon 8am), analytics-report(Mon 8:10am), saved-search-alerts(Mon 8:20am), status-update(daily 6am), deadline-alerts(daily 9am)');
 }

@@ -34,6 +34,8 @@ model Subsidy {
   applicationSteps  String[]  // 申請ステップ（順序付き）
   requiredDocuments String[]  // 必要書類
   viewCount         Int       @default(0) // 累計閲覧数
+  source            String?   // 取り込み元（例: jgrants / manual / scrape）
+  sourceId          String?   @unique // 取り込み元での一意ID（再取り込み時のupsertキー）
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

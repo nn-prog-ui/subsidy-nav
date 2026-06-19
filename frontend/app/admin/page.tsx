@@ -151,6 +151,13 @@ export default function AdminPage() {
     setTimeout(() => setScrapeMsg(''), 6000);
   };
 
+  const triggerJGrants = async () => {
+    const res = await fetch(`${API}/api/admin/import/jgrants`, { method: 'POST', headers: headers() });
+    const json = await res.json();
+    setScrapeMsg(json.message);
+    setTimeout(() => setScrapeMsg(''), 8000);
+  };
+
   const triggerSavedSearchAlerts = async () => {
     const res = await fetch(`${API}/api/admin/saved-search-alerts/send`, { method: 'POST', headers: headers() });
     const json = await res.json();
@@ -722,7 +729,8 @@ export default function AdminPage() {
             <h2 className="font-bold text-navy text-lg mb-3">手動実行</h2>
             <p className="text-gray-600 text-sm mb-4">54の自治体サイトから補助金情報を取得します。完了まで数分かかります。</p>
             <div className="flex flex-wrap gap-3">
-              <button onClick={triggerScrape} className="btn-primary">🔄 スクレイピングを開始</button>
+              <button onClick={triggerJGrants} className="btn-primary">🏛 Jグランツから取り込み</button>
+              <button onClick={triggerScrape} className="btn-outline">🔄 スクレイピングを開始</button>
               <button onClick={triggerReport} className="btn-outline">📊 分析レポートを送信</button>
               <button onClick={triggerSavedSearchAlerts} className="btn-outline">🔔 保存検索の新着通知</button>
               <button onClick={triggerRefreshStatus} className="btn-outline">♻️ ステータスを更新</button>
@@ -752,6 +760,7 @@ export default function AdminPage() {
             <div className="space-y-3 text-sm">
               {[
                 { time: '毎週月曜 AM2:00 JST', desc: '全54自治体の自動スクレイピング', color: 'bg-blue-100 text-blue-700' },
+                { time: '毎週月曜 AM3:00 JST', desc: 'Jグランツ公式APIから補助金を取り込み', color: 'bg-indigo-100 text-indigo-700' },
                 { time: '毎週月曜 AM8:00 JST', desc: '週次ダイジェストメール（ADMIN_EMAIL宛）', color: 'bg-green-100 text-green-700' },
                 { time: '毎週月曜 AM8:10 JST', desc: '週次分析レポートメール（ADMIN_EMAIL宛）', color: 'bg-teal-100 text-teal-700' },
                 { time: '毎週月曜 AM8:20 JST', desc: '保存検索にマッチする新着補助金の通知（会員宛）', color: 'bg-pink-100 text-pink-700' },

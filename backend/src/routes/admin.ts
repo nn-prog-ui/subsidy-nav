@@ -7,6 +7,7 @@ import { requireAdmin } from '../middleware/auth';
 import { runScrape } from '../services/scraper';
 import { sendAnalyticsReport, sendSavedSearchAlerts } from '../services/email';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/maintenance';
+import { importFromJGrants } from '../services/importJgrants';
 import { findDuplicateGroups } from '../utils/duplicates';
 import { invalidateCache } from '../middleware/cache';
 
@@ -58,6 +59,13 @@ router.post('/report/send', requireAdmin, async (_req: Request, res: Response) =
 router.post('/saved-search-alerts/send', requireAdmin, async (_req: Request, res: Response) => {
   res.json({ message: '保存検索の新着通知を送信しました' });
   sendSavedSearchAlerts().catch(console.error);
+});
+
+router.post('/import/jgrants', requireAdmin, async (req: Request, res: Response) => {
+  res.json({ message: 'Jグランツからの取り込みを開始しました（完了後に件数を反映）' });
+  importFromJGrants()
+    .then(r => recordAudit(req, 'create', 'subsidy', undefined, `jGrants取り込み 新規${r.imported}/更新${r.updated}`))
+    .catch(console.error);
 });
 
 router.post('/subsidies/refresh-status', requireAdmin, async (_req: Request, res: Response) => {
