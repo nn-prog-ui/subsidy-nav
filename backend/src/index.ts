@@ -11,6 +11,10 @@ import { initErrorMonitoring } from './services/monitoring';
 
 initErrorMonitoring();
 
+// Prisma の BIGINT 列（maxAmount 等）を res.json で安全に返すための保険。
+// 未設定だと JSON.stringify が BigInt で TypeError を投げ、補助金APIが500になる。
+(BigInt.prototype as any).toJSON = function () { return Number(this); };
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 

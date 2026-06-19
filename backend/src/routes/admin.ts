@@ -9,6 +9,7 @@ import { sendAnalyticsReport, sendSavedSearchAlerts } from '../services/email';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/maintenance';
 import { importFromJGrants } from '../services/importJgrants';
 import { generateApplicationGuide, GuideError } from '../services/applicationGuide';
+import { extractFromUrl, approveExtraction, rejectExtraction, ExtractionError } from '../services/aiExtraction';
 import { findDuplicateGroups } from '../utils/duplicates';
 import { invalidateCache } from '../middleware/cache';
 
@@ -78,6 +79,52 @@ router.post('/subsidies/:id/guide', requireAdmin, async (req: Request, res: Resp
   } catch (e: any) {
     const status = e instanceof GuideError ? e.statusCode : 500;
     res.status(status).json({ error: e.message || 'ガイド生成に失敗しました' });
+  }
+});
+
+// Phase 32: AI抽出（公式サイト/告示URL → 補助金候補）
+router.post('/extract', requireAdmin, async (req: Request, res: Response) => {
+  const { url } = req.body || {};
+  if (!url || typeof url !== 'string') return res.status(400).json({ error: 'url を指定してください' });
+  try {
+    const result = await extractFromUrl(url);
+    await recordAudit(req, 'create', 'extraction', undefined, `AI抽出 ${result.saved}件 from ${url}`);
+    res.json({ message: `AI抽出が完了しました（候補${result.saved}件）`, saved: result.saved });
+  } catch (e: any) {
+    const status = e instanceof ExtractionError ? e.statusCode : 500;
+    res.status(status).json({ error: e.message || 'AI抽出に失敗しました' });
+  }
+});
+
+router.get('/extractions', requireAdmin, async (req: Request, res: Response) => {
+  const status = (req.query.status as string) || 'pending';
+  const data = await prisma.extractedSubsidy.findMany({
+    where: { status },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+  res.json({ data });
+});
+
+router.post('/extractions/:id/approve', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const subsidy = await approveExtraction(req.params.id);
+    await recordAudit(req, 'create', 'subsidy', subsidy.id, `AI抽出を公開: ${subsidy.title}`);
+    res.json({ message: '補助金として公開しました', subsidy });
+  } catch (e: any) {
+    const status = e instanceof ExtractionError ? e.statusCode : 500;
+    res.status(status).json({ error: e.message || '公開に失敗しました' });
+  }
+});
+
+router.post('/extractions/:id/reject', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    await rejectExtraction(req.params.id);
+    await recordAudit(req, 'update', 'extraction', req.params.id, 'AI抽出候補を却下');
+    res.json({ message: '却下しました' });
+  } catch (e: any) {
+    const status = e instanceof ExtractionError ? e.statusCode : 500;
+    res.status(status).json({ error: e.message || '却下に失敗しました' });
   }
 });
 

@@ -8,6 +8,7 @@ interface Stats { subsidies: number; alerts: number; consulting: number; users: 
 interface ScrapeLog { id: string; targetName: string; status: string; subsidiesFound: number; errorMessage?: string | null; createdAt: string; }
 interface ConsultingItem { id: string; name: string; email: string; company: string | null; prefecture: string | null; message: string; status: string; createdAt: string; }
 interface SubsidyItem { id: string; title: string; prefecture: string; category: string; level: string; maxAmount: number | null; status: string; createdAt: string; }
+interface ExtractionItem { id: string; sourceUrl: string; title: string; description: string; category: string; prefecture: string; municipalityName: string | null; level: string; maxAmount: number | null; subsidyRate: string | null; applicationEnd: string | null; applicationUrl: string | null; confidence: string; status: string; createdAt: string; }
 interface AlertItem { id: string; email: string; prefectures: string[]; categories: string[]; verified: boolean; active: boolean; createdAt: string; }
 interface UserItem { id: string; email: string; name: string | null; emailVerified: boolean; provider: string; createdAt: string; _count: { favorites: number }; }
 interface Bucket { label: string; count: number; }
@@ -67,6 +68,9 @@ export default function AdminPage() {
   const [subPage, setSubPage] = useState(1);
   const [subKeyword, setSubKeyword] = useState('');
   const [guidingId, setGuidingId] = useState<string | null>(null);
+  const [extractUrl, setExtractUrl] = useState('');
+  const [extractLoading, setExtractLoading] = useState(false);
+  const [extractions, setExtractions] = useState<ExtractionItem[]>([]);
   const [subMeta, setSubMeta] = useState({ total: 0, pages: 1 });
   const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '', difficulty: '', estimatedDays: '' });
 
@@ -124,6 +128,10 @@ export default function AdminPage() {
     const saved = localStorage.getItem('admin_token');
     if (saved) { setToken(saved); fetchData(saved); }
   }, [fetchData]);
+
+  useEffect(() => {
+    if (tab === 'scrape' && token) loadExtractions();
+  }, [tab, token, loadExtractions]);
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,6 +204,44 @@ export default function AdminPage() {
       setGuidingId(null);
       setTimeout(() => setScrapeMsg(''), 8000);
     }
+  };
+
+  const loadExtractions = useCallback(async () => {
+    if (!token) return;
+    const r = await fetch(`${API}/api/admin/extractions?status=pending`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.status === 401) { sessionExpired(); return; }
+    const j = await r.json();
+    setExtractions(j.data || []);
+  }, [token, sessionExpired]);
+
+  const runExtract = async () => {
+    const url = extractUrl.trim();
+    if (!url) return;
+    setExtractLoading(true);
+    try {
+      const r = await fetch(`${API}/api/admin/extract`, { method: 'POST', headers: headers(), body: JSON.stringify({ url }) });
+      const j = await r.json();
+      setScrapeMsg(r.ok ? `✅ ${j.message}` : `⚠️ ${j.error || 'AI抽出に失敗しました'}`);
+      if (r.ok) { setExtractUrl(''); await loadExtractions(); }
+    } catch {
+      setScrapeMsg('⚠️ AI抽出リクエストに失敗しました');
+    } finally {
+      setExtractLoading(false);
+      setTimeout(() => setScrapeMsg(''), 8000);
+    }
+  };
+
+  const approveExtraction = async (id: string) => {
+    const r = await fetch(`${API}/api/admin/extractions/${id}/approve`, { method: 'POST', headers: headers() });
+    const j = await r.json();
+    setScrapeMsg(r.ok ? `✅ ${j.message}` : `⚠️ ${j.error || '公開に失敗しました'}`);
+    if (r.ok) { setExtractions(prev => prev.filter(e => e.id !== id)); fetchData(token); }
+    setTimeout(() => setScrapeMsg(''), 6000);
+  };
+
+  const rejectExtraction = async (id: string) => {
+    const r = await fetch(`${API}/api/admin/extractions/${id}/reject`, { method: 'POST', headers: headers() });
+    if (r.ok) setExtractions(prev => prev.filter(e => e.id !== id));
   };
 
   const deleteSubsidy = async (id: string) => {
@@ -748,6 +794,7 @@ export default function AdminPage() {
 
       {/* Scrape Tab */}
       {tab === 'scrape' && (
+        <div className="space-y-6">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="card p-6">
             <h2 className="font-bold text-navy text-lg mb-3">手動実行</h2>
@@ -797,6 +844,58 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="font-bold text-navy text-lg">🤖 AI抽出（公式サイト/告示）</h2>
+              <span className="badge bg-indigo-100 text-indigo-700 text-xs">要 ANTHROPIC_API_KEY</span>
+            </div>
+            <p className="text-gray-600 text-sm mb-3">Jグランツに無い市区町村の補助金ページのURLを入力すると、AIが内容を構造化して候補に保存します。レビューのうえ「承認」で公開されます。</p>
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+              <input
+                value={extractUrl}
+                onChange={e => setExtractUrl(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') runExtract(); }}
+                placeholder="https://www.city.example.lg.jp/hojokin/..."
+                aria-label="抽出元URL"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1" />
+              <button onClick={runExtract} disabled={extractLoading || !extractUrl.trim()} className="btn-primary whitespace-nowrap disabled:opacity-50">
+                {extractLoading ? '抽出中…（30秒程度）' : '🤖 AIで抽出'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-navy text-sm">レビュー待ちの候補（{extractions.length}）</h3>
+              <button onClick={loadExtractions} className="text-xs text-navy hover:underline">🔄 再読込</button>
+            </div>
+            {extractions.length === 0 ? (
+              <p className="text-sm text-gray-400">保留中の候補はありません。</p>
+            ) : (
+              <div className="space-y-3">
+                {extractions.map(e => (
+                  <div key={e.id} className="border border-gray-100 rounded-lg p-3">
+                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                      <span className={`badge text-[10px] ${e.confidence === 'high' ? 'bg-green-100 text-green-700' : e.confidence === 'low' ? 'bg-gray-100 text-gray-600' : 'bg-yellow-100 text-yellow-700'}`}>確度 {e.confidence}</span>
+                      <span className="badge text-[10px] bg-orange-100 text-orange-700">{e.category}</span>
+                      <span className="badge text-[10px] bg-gray-100 text-gray-600">{e.municipalityName || e.prefecture}</span>
+                    </div>
+                    <div className="font-medium text-navy text-sm">{e.title}</div>
+                    <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{e.description}</p>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {e.maxAmount ? `上限 ¥${Number(e.maxAmount).toLocaleString()}` : '上限記載なし'}
+                      {e.applicationEnd ? ` ・締切 ${new Date(e.applicationEnd).toLocaleDateString('ja-JP')}` : ''}
+                      {' ・'}<a href={e.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-navy hover:underline">出典</a>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => approveExtraction(e.id)} className="text-xs bg-navy text-white px-3 py-1 rounded hover:opacity-90">✓ 承認して公開</button>
+                      <button onClick={() => rejectExtraction(e.id)} className="text-xs text-red-500 hover:text-red-700 px-2">却下</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

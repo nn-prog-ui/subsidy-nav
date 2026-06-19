@@ -62,6 +62,31 @@ model ApplicationGuide {
   generatedAt      DateTime @default(now())
 }
 
+// Phase 32: AIが公式サイト/告示から抽出した補助金候補。管理者レビュー後に Subsidy へ公開。
+model ExtractedSubsidy {
+  id               String    @id @default(cuid())
+  sourceUrl        String
+  title            String
+  description      String
+  category         String
+  targetType       String
+  prefecture       String
+  municipalityName String?
+  level            String    @default("市区町村")
+  maxAmount        BigInt?
+  subsidyRate      String?
+  applicationStart DateTime?
+  applicationEnd   DateTime?
+  applicationUrl   String?
+  confidence       String    @default("medium") // high|medium|low（抽出確度）
+  status           String    @default("pending") // pending|approved|rejected
+  publishedId      String?   // 承認時に作成した Subsidy.id
+  model            String
+  createdAt        DateTime  @default(now())
+
+  @@index([status, createdAt])
+}
+
 model Alert {
   id                String   @id @default(cuid())
   email             String
