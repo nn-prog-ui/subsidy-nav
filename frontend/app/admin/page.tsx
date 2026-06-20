@@ -129,10 +129,6 @@ export default function AdminPage() {
     if (saved) { setToken(saved); fetchData(saved); }
   }, [fetchData]);
 
-  useEffect(() => {
-    if (tab === 'scrape' && token) loadExtractions();
-  }, [tab, token, loadExtractions]);
-
   const login = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -213,6 +209,10 @@ export default function AdminPage() {
     const j = await r.json();
     setExtractions(j.data || []);
   }, [token, sessionExpired]);
+
+  useEffect(() => {
+    if (tab === 'scrape' && token) loadExtractions();
+  }, [tab, token, loadExtractions]);
 
   const runExtract = async () => {
     const url = extractUrl.trim();
