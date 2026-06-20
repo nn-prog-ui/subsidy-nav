@@ -8,12 +8,12 @@ import { errorHandler } from './middleware/errorHandler';
 import { requestId } from './middleware/requestId';
 import { startScheduler } from './services/scheduler';
 import { initErrorMonitoring } from './services/monitoring';
+import { enableBigIntJson } from './lib/serialization';
 
 initErrorMonitoring();
 
 // Prisma の BIGINT 列（maxAmount 等）を res.json で安全に返すための保険。
-// 未設定だと JSON.stringify が BigInt で TypeError を投げ、補助金APIが500になる。
-(BigInt.prototype as any).toJSON = function () { return Number(this); };
+enableBigIntJson();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
