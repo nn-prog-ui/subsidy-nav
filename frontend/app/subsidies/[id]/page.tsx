@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import FavoriteButton from './FavoriteButton';
 import RecordView from './RecordView';
 import ProgressTracker from './ProgressTracker';
+import DraftGenerator from './DraftGenerator';
 import ReportForm from './ReportForm';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -266,6 +267,9 @@ export default async function SubsidyDetailPage({ params }: { params: { id: stri
 
         {/* 申請進捗トラッカー */}
         <ProgressTracker subsidyId={subsidy.id} />
+
+        {/* AI申請書ドラフト生成（会員限定） */}
+        <DraftGenerator subsidyId={subsidy.id} />
 
         <div className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-100">
           {subsidy.applicationUrl && (

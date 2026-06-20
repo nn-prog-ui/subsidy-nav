@@ -6,6 +6,9 @@ import { cacheMiddleware } from '../middleware/cache';
 import { buildTsQuery, expandSynonyms, pickTitleSuggestions } from '../utils/search';
 import { buildIcsEvent } from '../utils/ics';
 import { buildRssFeed } from '../utils/rss';
+import { requireUser } from '../middleware/auth';
+import { generateApplicationDraft, DraftError } from '../services/applicationDraft';
+import type { DraftProfile } from '../utils/applicationDraft';
 
 const router = Router();
 
@@ -307,6 +310,25 @@ router.get('/:id', async (req: Request, res: Response) => {
   });
 
   res.json({ data, related });
+});
+
+// Phase 35: 会員向けAI申請書ドラフト生成（申請者情報は保存しない）
+router.post('/:id/draft', requireUser, async (req: Request, res: Response) => {
+  const b = req.body || {};
+  const fields = ['companyName', 'industry', 'employees', 'businessSummary', 'projectPlan'] as const;
+  const profile = {} as DraftProfile;
+  for (const f of fields) {
+    const v = typeof b[f] === 'string' ? b[f].trim() : '';
+    if (!v) return res.status(400).json({ error: '事業者名・業種・従業員規模・事業概要・取り組み内容をすべて入力してください' });
+    profile[f] = v.slice(0, 2000);
+  }
+  try {
+    const draft = await generateApplicationDraft(req.params.id, profile);
+    res.json({ data: draft });
+  } catch (e: any) {
+    const status = e instanceof DraftError ? e.statusCode : 500;
+    res.status(status).json({ error: e.message || 'ドラフト生成に失敗しました' });
+  }
 });
 
 router.get('/:id/pdf', async (req: Request, res: Response) => {
