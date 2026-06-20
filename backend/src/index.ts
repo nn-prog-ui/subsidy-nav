@@ -9,6 +9,7 @@ import { requestId } from './middleware/requestId';
 import { startScheduler } from './services/scheduler';
 import { initErrorMonitoring } from './services/monitoring';
 import { enableBigIntJson } from './lib/serialization';
+import { ensureAdminUser } from './services/bootstrap';
 
 initErrorMonitoring();
 
@@ -65,5 +66,6 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+  ensureAdminUser().catch(() => {});
   startScheduler();
 });

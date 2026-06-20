@@ -79,7 +79,7 @@ docker-compose up --build
 
 ## デプロイ（Railway）
 
-`RAILWAY_DEPLOY.md` を参照。`DEPLOY_ENABLED=true`（リポジトリ変数）と `RAILWAY_TOKEN`（Secret）を設定すると自動デプロイ。
+`RAILWAY_DEPLOY.md` を参照（環境変数表・初回スモークテスト・データ投入手順つき）。`DEPLOY_ENABLED=true`（リポジトリ変数）と `RAILWAY_TOKEN`（Secret）を設定すると自動デプロイ。backend 起動時に `ADMIN_EMAIL`/`ADMIN_PASSWORD` から管理者を自動作成（冪等）するため、シード未実行でも `/admin` にログイン可能。
 
 ## 管理者ログイン
 
