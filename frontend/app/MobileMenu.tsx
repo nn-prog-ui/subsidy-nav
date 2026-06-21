@@ -6,6 +6,7 @@ const LINKS = [
   { href: '/subsidies', label: '補助金を探す' },
   { href: '/categories', label: 'カテゴリ' },
   { href: '/matching', label: 'マッチング診断' },
+  { href: '/concierge', label: 'AI相談' },
   { href: '/calendar', label: 'カレンダー' },
   { href: '/compare', label: '比較' },
   { href: '/alerts', label: 'アラート登録' },

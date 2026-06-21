@@ -9,6 +9,7 @@ import { buildRssFeed } from '../utils/rss';
 import { requireUser } from '../middleware/auth';
 import { generateApplicationDraft, DraftError } from '../services/applicationDraft';
 import type { DraftProfile } from '../utils/applicationDraft';
+import { recommendSubsidies, ConciergeError } from '../services/aiConcierge';
 
 const router = Router();
 
@@ -310,6 +311,20 @@ router.get('/:id', async (req: Request, res: Response) => {
   });
 
   res.json({ data, related });
+});
+
+// Phase 38: 会員向けAIコンシェルジュ（自由文 → 補助金を理由つきで提案）
+router.post('/ai-recommend', requireUser, async (req: Request, res: Response) => {
+  const situation = typeof req.body?.situation === 'string' ? req.body.situation.trim() : '';
+  if (situation.length < 5) return res.status(400).json({ error: '事業内容・ご希望を5文字以上で入力してください' });
+  const prefecture = typeof req.body?.prefecture === 'string' && req.body.prefecture.trim() ? req.body.prefecture.trim() : null;
+  try {
+    const data = await recommendSubsidies({ situation: situation.slice(0, 2000), prefecture });
+    res.json({ data });
+  } catch (e: any) {
+    const status = e instanceof ConciergeError ? e.statusCode : 500;
+    res.status(status).json({ error: e.message || 'AI提案に失敗しました' });
+  }
 });
 
 // Phase 35: 会員向けAI申請書ドラフト生成（申請者情報は保存しない）

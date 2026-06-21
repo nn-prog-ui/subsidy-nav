@@ -100,6 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/subsidies" className="hover:text-orange-300 transition-colors">補助金を探す</Link>
               <Link href="/categories" className="hover:text-orange-300 transition-colors">カテゴリ</Link>
               <Link href="/matching" className="hover:text-orange-300 transition-colors">マッチング診断</Link>
+              <Link href="/concierge" className="hover:text-orange-300 transition-colors">AI相談</Link>
               <Link href="/calendar" className="hover:text-orange-300 transition-colors">カレンダー</Link>
               <Link href="/compare" className="hover:text-orange-300 transition-colors">比較</Link>
               <Link href="/alerts" className="hover:text-orange-300 transition-colors">アラート登録</Link>
@@ -123,6 +124,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <li><Link href="/subsidies" className="hover:text-white">補助金検索</Link></li>
                 <li><Link href="/categories" className="hover:text-white">カテゴリから探す</Link></li>
                 <li><Link href="/matching" className="hover:text-white">マッチング診断</Link></li>
+                <li><Link href="/concierge" className="hover:text-white">AI相談</Link></li>
                 <li><Link href="/calendar" className="hover:text-white">カレンダー</Link></li>
                 <li><Link href="/compare" className="hover:text-white">補助金比較</Link></li>
                 <li><Link href="/analytics" className="hover:text-white">データ分析</Link></li>

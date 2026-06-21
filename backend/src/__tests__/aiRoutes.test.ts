@@ -40,6 +40,10 @@ jest.mock('../services/consultingReply', () => {
   class ConsultingReplyError extends Error { statusCode: number; constructor(m: string, s = 500) { super(m); this.statusCode = s; } }
   return { generateConsultingReply: jest.fn(), ConsultingReplyError };
 });
+jest.mock('../services/aiConcierge', () => {
+  class ConciergeError extends Error { statusCode: number; constructor(m: string, s = 500) { super(m); this.statusCode = s; } }
+  return { recommendSubsidies: jest.fn(), ConciergeError };
+});
 
 import adminRouter from '../routes/admin';
 import subsidiesRouter from '../routes/subsidies';
@@ -47,6 +51,7 @@ import { generateApplicationGuide, GuideError } from '../services/applicationGui
 import { extractFromUrl, approveExtraction, ExtractionError } from '../services/aiExtraction';
 import { generateApplicationDraft, DraftError } from '../services/applicationDraft';
 import { generateConsultingReply, ConsultingReplyError } from '../services/consultingReply';
+import { recommendSubsidies, ConciergeError } from '../services/aiConcierge';
 
 enableBigIntJson();
 const app = express();
@@ -160,6 +165,29 @@ describe('POST /api/admin/consulting/:id/ai-reply', () => {
   it('APIキー未設定(ConsultingReplyError 503)は503に写像', async () => {
     (generateConsultingReply as jest.Mock).mockRejectedValue(new ConsultingReplyError('no key', 503));
     const r = await request(app).post('/api/admin/consulting/req1/ai-reply').set(bearer(adminToken));
+    expect(r.status).toBe(503);
+  });
+});
+
+describe('POST /api/subsidies/ai-recommend', () => {
+  it('トークン無しは401', async () => {
+    const r = await request(app).post('/api/subsidies/ai-recommend').send({ situation: 'カフェのEC化' });
+    expect(r.status).toBe(401);
+  });
+  it('入力が短すぎると400', async () => {
+    const r = await request(app).post('/api/subsidies/ai-recommend').set(bearer(userToken)).send({ situation: 'あ' });
+    expect(r.status).toBe(400);
+  });
+  it('成功時は200で提案配列を返す', async () => {
+    (recommendSubsidies as jest.Mock).mockResolvedValue([{ id: 's1', title: 'IT導入補助金', reason: '合致', maxAmount: 4500000 }]);
+    const r = await request(app).post('/api/subsidies/ai-recommend').set(bearer(userToken)).send({ situation: 'カフェのEC化をしたい' });
+    expect(r.status).toBe(200);
+    expect(r.body.data[0].id).toBe('s1');
+    expect(recommendSubsidies).toHaveBeenCalledWith(expect.objectContaining({ situation: 'カフェのEC化をしたい' }));
+  });
+  it('APIキー未設定(ConciergeError 503)は503に写像', async () => {
+    (recommendSubsidies as jest.Mock).mockRejectedValue(new ConciergeError('no key', 503));
+    const r = await request(app).post('/api/subsidies/ai-recommend').set(bearer(userToken)).send({ situation: 'カフェのEC化をしたい' });
     expect(r.status).toBe(503);
   });
 });
