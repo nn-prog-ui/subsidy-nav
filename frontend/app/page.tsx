@@ -105,6 +105,35 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* AI features showcase */}
+      <section className="py-14 px-4 bg-gradient-to-br from-navy/[0.03] to-accent/[0.05] border-b">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-8">
+            <span className="badge bg-navy text-white text-xs mb-2 inline-block">AI × 補助金コンサル</span>
+            <h2 className="text-2xl md:text-3xl font-bold text-navy">AIが、見つける・書ける・伴走する</h2>
+            <p className="text-gray-500 text-sm mt-2">最新の補助金情報をAIで整理し、申請から入金まで伴走します。</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            <Link href="/concierge" className="card p-6 group block">
+              <div className="text-3xl mb-2">🤖</div>
+              <h3 className="font-bold text-navy mb-1 group-hover:text-navy-light">AIコンシェルジュ</h3>
+              <p className="text-gray-600 text-sm leading-relaxed">事業内容を文章で入力するだけ。AIがあなたに合う補助金を理由つきで提案します。</p>
+              <span className="text-navy text-sm font-medium mt-3 inline-block">相談してみる →</span>
+            </Link>
+            <div className="card p-6">
+              <div className="text-3xl mb-2">📝</div>
+              <h3 className="font-bold text-navy mb-1">AI申請ガイド</h3>
+              <p className="text-gray-600 text-sm leading-relaxed">補助金ごとに「申請書の書き方・必要書類・入金までの日数」をAIが解説。各補助金の詳細ページに掲載。</p>
+            </div>
+            <div className="card p-6">
+              <div className="text-3xl mb-2">✍️</div>
+              <h3 className="font-bold text-navy mb-1">AI申請書ドラフト</h3>
+              <p className="text-gray-600 text-sm leading-relaxed">事業情報から、その補助金向けの事業計画書のたたき台をAIが作成（会員機能）。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Stats by level */}
       {stats?.byLevel && (
         <section className="py-8 bg-gray-50 border-b">
