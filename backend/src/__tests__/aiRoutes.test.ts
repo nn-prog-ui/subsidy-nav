@@ -36,12 +36,17 @@ jest.mock('../services/applicationDraft', () => {
   class DraftError extends Error { statusCode: number; constructor(m: string, s = 500) { super(m); this.statusCode = s; } }
   return { generateApplicationDraft: jest.fn(), DraftError };
 });
+jest.mock('../services/consultingReply', () => {
+  class ConsultingReplyError extends Error { statusCode: number; constructor(m: string, s = 500) { super(m); this.statusCode = s; } }
+  return { generateConsultingReply: jest.fn(), ConsultingReplyError };
+});
 
 import adminRouter from '../routes/admin';
 import subsidiesRouter from '../routes/subsidies';
 import { generateApplicationGuide, GuideError } from '../services/applicationGuide';
 import { extractFromUrl, approveExtraction, ExtractionError } from '../services/aiExtraction';
 import { generateApplicationDraft, DraftError } from '../services/applicationDraft';
+import { generateConsultingReply, ConsultingReplyError } from '../services/consultingReply';
 
 enableBigIntJson();
 const app = express();
@@ -134,6 +139,27 @@ describe('POST /api/subsidies/:id/draft', () => {
   it('APIキー未設定(DraftError 503)は503に写像', async () => {
     (generateApplicationDraft as jest.Mock).mockRejectedValue(new DraftError('no key', 503));
     const r = await request(app).post('/api/subsidies/s1/draft').set(bearer(userToken)).send(full);
+    expect(r.status).toBe(503);
+  });
+});
+
+describe('POST /api/admin/consulting/:id/ai-reply', () => {
+  it('トークン無しは401', async () => {
+    const r = await request(app).post('/api/admin/consulting/req1/ai-reply');
+    expect(r.status).toBe(401);
+  });
+  it('成功時は200で返信文と提案補助金を返す', async () => {
+    (generateConsultingReply as jest.Mock).mockResolvedValue({
+      reply: '山田様\n…\n補助金ナビ', suggested: [{ id: 's1', title: 'IT導入補助金', maxAmount: 4500000 }],
+    });
+    const r = await request(app).post('/api/admin/consulting/req1/ai-reply').set(bearer(adminToken));
+    expect(r.status).toBe(200);
+    expect(r.body.reply).toContain('山田様');
+    expect(r.body.suggested[0].id).toBe('s1');
+  });
+  it('APIキー未設定(ConsultingReplyError 503)は503に写像', async () => {
+    (generateConsultingReply as jest.Mock).mockRejectedValue(new ConsultingReplyError('no key', 503));
+    const r = await request(app).post('/api/admin/consulting/req1/ai-reply').set(bearer(adminToken));
     expect(r.status).toBe(503);
   });
 });

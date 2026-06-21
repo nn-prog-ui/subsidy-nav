@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -71,6 +71,9 @@ export default function AdminPage() {
   const [extractUrl, setExtractUrl] = useState('');
   const [extractLoading, setExtractLoading] = useState(false);
   const [extractions, setExtractions] = useState<ExtractionItem[]>([]);
+  const [replyLoadingId, setReplyLoadingId] = useState<string | null>(null);
+  const [reply, setReply] = useState<{ id: string; reply: string; suggested: { id: string; title: string; category: string; prefecture: string; level: string; maxAmount: number | null }[] } | null>(null);
+  const [replyCopied, setReplyCopied] = useState(false);
   const [subMeta, setSubMeta] = useState({ total: 0, pages: 1 });
   const [addForm, setAddForm] = useState({ title: '', description: '', category: 'IT・デジタル', targetType: '中小企業', level: '国', prefecture: '全国', maxAmount: '', subsidyRate: '', applicationUrl: '', requirements: '', difficulty: '', estimatedDays: '' });
 
@@ -181,6 +184,26 @@ export default function AdminPage() {
   const updateConsultingStatus = async (id: string, status: string) => {
     await fetch(`${API}/api/admin/consulting/${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status }) });
     setConsulting(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+  };
+
+  const genReply = async (id: string) => {
+    setReplyLoadingId(id);
+    setReplyCopied(false);
+    try {
+      const res = await fetch(`${API}/api/admin/consulting/${id}/ai-reply`, { method: 'POST', headers: headers() });
+      const json = await res.json();
+      if (res.ok) setReply({ id, reply: json.reply, suggested: json.suggested || [] });
+      else setReply({ id, reply: `⚠️ ${json.error || 'AI返信ドラフト生成に失敗しました'}`, suggested: [] });
+    } catch {
+      setReply({ id, reply: '⚠️ 通信に失敗しました', suggested: [] });
+    } finally {
+      setReplyLoadingId(null);
+    }
+  };
+
+  const copyReply = () => {
+    if (!reply) return;
+    navigator.clipboard?.writeText(reply.reply).then(() => { setReplyCopied(true); setTimeout(() => setReplyCopied(false), 2000); }, () => {});
   };
 
   const updateSubsidyStatus = async (id: string, status: string) => {
@@ -578,7 +601,8 @@ export default function AdminPage() {
               {consulting.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">相談なし</td></tr>
               ) : consulting.map(c => (
-                <tr key={c.id} className={`border-t border-gray-100 hover:bg-gray-50 ${c.status === 'pending' ? 'bg-yellow-50/50' : ''}`}>
+                <Fragment key={c.id}>
+                <tr className={`border-t border-gray-100 hover:bg-gray-50 ${c.status === 'pending' ? 'bg-yellow-50/50' : ''}`}>
                   <td className="px-3 py-2.5 font-medium">{c.name}</td>
                   <td className="px-3 py-2.5 text-gray-500 text-xs">{c.email}</td>
                   <td className="px-3 py-2.5 text-xs text-gray-500">{(c as any).industry || '－'}</td>
@@ -588,14 +612,50 @@ export default function AdminPage() {
                   </td>
                   <td className="px-3 py-2.5 text-xs text-gray-400">{new Date(c.createdAt).toLocaleDateString('ja-JP')}</td>
                   <td className="px-3 py-2.5">
-                    <select value={c.status} onChange={e => updateConsultingStatus(c.id, e.target.value)}
-                      className="text-xs border border-gray-200 rounded px-1.5 py-0.5">
-                      <option value="pending">pending</option>
-                      <option value="contacted">contacted</option>
-                      <option value="closed">closed</option>
-                    </select>
+                    <div className="flex gap-2 items-center">
+                      <button onClick={() => genReply(c.id)} disabled={replyLoadingId === c.id}
+                        className="text-xs text-navy hover:underline disabled:opacity-50 whitespace-nowrap">
+                        {replyLoadingId === c.id ? '生成中…' : '🤖 AI返信'}
+                      </button>
+                      <select value={c.status} onChange={e => updateConsultingStatus(c.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-1.5 py-0.5">
+                        <option value="pending">pending</option>
+                        <option value="contacted">contacted</option>
+                        <option value="closed">closed</option>
+                      </select>
+                    </div>
                   </td>
                 </tr>
+                {reply?.id === c.id && (
+                  <tr className="bg-navy/5 border-t border-gray-100">
+                    <td colSpan={7} className="px-4 py-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-bold text-navy">🤖 AI返信ドラフト</span>
+                        <div className="flex gap-2">
+                          <button onClick={copyReply} className="text-xs text-navy hover:underline">{replyCopied ? '✓ コピーしました' : '📋 コピー'}</button>
+                          <button onClick={() => setReply(null)} className="text-xs text-gray-400 hover:text-gray-600">閉じる</button>
+                        </div>
+                      </div>
+                      <textarea readOnly value={reply.reply} rows={10}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white" />
+                      {reply.suggested.length > 0 && (
+                        <div className="mt-3">
+                          <div className="text-xs text-gray-500 mb-1">提案した補助金</div>
+                          <ul className="space-y-1">
+                            {reply.suggested.map(s => (
+                              <li key={s.id} className="text-sm">
+                                <Link href={`/subsidies/${s.id}`} target="_blank" className="text-navy hover:underline">{s.title}</Link>
+                                <span className="text-xs text-gray-400"> ・{s.prefecture}（{s.level}）{s.maxAmount ? ` ・上限¥${s.maxAmount.toLocaleString()}` : ''}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-gray-400 mt-2">※ AIが生成したたたき台です。送信前に内容をご確認・調整ください。</p>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>

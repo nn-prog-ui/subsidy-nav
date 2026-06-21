@@ -10,6 +10,7 @@ import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/ma
 import { importFromJGrants } from '../services/importJgrants';
 import { generateApplicationGuide, GuideError } from '../services/applicationGuide';
 import { extractFromUrl, approveExtraction, rejectExtraction, ExtractionError } from '../services/aiExtraction';
+import { generateConsultingReply, ConsultingReplyError } from '../services/consultingReply';
 import { findDuplicateGroups } from '../utils/duplicates';
 import { invalidateCache } from '../middleware/cache';
 
@@ -142,6 +143,18 @@ router.get('/consulting', requireAdmin, async (_req: Request, res: Response) => 
 router.patch('/consulting/:id', requireAdmin, async (req: Request, res: Response) => {
   const data = await prisma.consultingRequest.update({ where: { id: req.params.id }, data: { status: req.body.status } });
   res.json({ data });
+});
+
+// Phase 37: 相談リクエストへのAI返信ドラフト（補助金提案つき）
+router.post('/consulting/:id/ai-reply', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await generateConsultingReply(req.params.id);
+    await recordAudit(req, 'create', 'consulting-reply', req.params.id, 'AI返信ドラフト生成');
+    res.json(result);
+  } catch (e: any) {
+    const status = e instanceof ConsultingReplyError ? e.statusCode : 500;
+    res.status(status).json({ error: e.message || 'AI返信ドラフト生成に失敗しました' });
+  }
 });
 
 // Subsidy CRUD
