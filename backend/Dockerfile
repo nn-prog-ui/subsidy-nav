@@ -12,6 +12,7 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 EXPOSE 4000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD wget -qO- http://localhost:4000/api/health || exit 1
+# Docker-level HEALTHCHECK は付けない:
+# アプリは Railway が注入する $PORT で待ち受けるため、ポート固定(4000)のチェックは
+# 誤って unhealthy になり得る。死活監視は railway.toml の healthcheckPath に委ねる。
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
