@@ -166,6 +166,13 @@ export default function AdminPage() {
     setTimeout(() => setScrapeMsg(''), 8000);
   };
 
+  const triggerMhlw = async () => {
+    const res = await fetch(`${API}/api/admin/import/mhlw`, { method: 'POST', headers: headers() });
+    const json = await res.json();
+    setScrapeMsg(json.message);
+    setTimeout(() => setScrapeMsg(''), 8000);
+  };
+
   const triggerSavedSearchAlerts = async () => {
     const res = await fetch(`${API}/api/admin/saved-search-alerts/send`, { method: 'POST', headers: headers() });
     const json = await res.json();
@@ -861,6 +868,7 @@ export default function AdminPage() {
             <p className="text-gray-600 text-sm mb-4">54の自治体サイトから補助金情報を取得します。完了まで数分かかります。</p>
             <div className="flex flex-wrap gap-3">
               <button onClick={triggerJGrants} className="btn-primary">🏛 Jグランツから取り込み</button>
+              <button onClick={triggerMhlw} className="btn-primary">🏛 厚労省助成金を取り込み</button>
               <button onClick={triggerScrape} className="btn-outline">🔄 スクレイピングを開始</button>
               <button onClick={triggerReport} className="btn-outline">📊 分析レポートを送信</button>
               <button onClick={triggerSavedSearchAlerts} className="btn-outline">🔔 保存検索の新着通知</button>
