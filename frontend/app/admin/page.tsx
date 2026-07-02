@@ -173,6 +173,14 @@ export default function AdminPage() {
     setTimeout(() => setScrapeMsg(''), 8000);
   };
 
+  const triggerJnet21 = async () => {
+    const res = await fetch(`${API}/api/admin/import/jnet21`, { method: 'POST', headers: headers() });
+    const json = await res.json();
+    setScrapeMsg(json.message);
+    setTimeout(() => loadExtractions(), 5000); // 取り込み後にレビューキューを再読込
+    setTimeout(() => setScrapeMsg(''), 8000);
+  };
+
   const triggerSavedSearchAlerts = async () => {
     const res = await fetch(`${API}/api/admin/saved-search-alerts/send`, { method: 'POST', headers: headers() });
     const json = await res.json();
@@ -869,6 +877,7 @@ export default function AdminPage() {
             <div className="flex flex-wrap gap-3">
               <button onClick={triggerJGrants} className="btn-primary">🏛 Jグランツから取り込み</button>
               <button onClick={triggerMhlw} className="btn-primary">🏛 厚労省助成金を取り込み</button>
+              <button onClick={triggerJnet21} className="btn-outline">📰 J-Net21から取り込み</button>
               <button onClick={triggerScrape} className="btn-outline">🔄 スクレイピングを開始</button>
               <button onClick={triggerReport} className="btn-outline">📊 分析レポートを送信</button>
               <button onClick={triggerSavedSearchAlerts} className="btn-outline">🔔 保存検索の新着通知</button>

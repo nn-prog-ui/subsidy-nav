@@ -9,6 +9,7 @@ import { sendAnalyticsReport, sendSavedSearchAlerts } from '../services/email';
 import { closeExpiredSubsidies, activateUpcomingSubsidies } from '../services/maintenance';
 import { importFromJGrants } from '../services/importJgrants';
 import { importMhlwGrants } from '../services/importMhlwGrants';
+import { importFromJnet21 } from '../services/importJnet21';
 import { generateApplicationGuide, GuideError } from '../services/applicationGuide';
 import { extractFromUrl, approveExtraction, rejectExtraction, ExtractionError } from '../services/aiExtraction';
 import { generateConsultingReply, ConsultingReplyError } from '../services/consultingReply';
@@ -76,6 +77,13 @@ router.post('/import/mhlw', requireAdmin, async (req: Request, res: Response) =>
   res.json({ message: '厚労省 雇用関係助成金の取り込みを開始しました（完了後に件数を反映）' });
   importMhlwGrants()
     .then(r => recordAudit(req, 'create', 'subsidy', undefined, `厚労省助成金取り込み 新規${r.imported}/更新${r.updated}`))
+    .catch(console.error);
+});
+
+router.post('/import/jnet21', requireAdmin, async (req: Request, res: Response) => {
+  res.json({ message: 'J-Net21から取り込みを開始しました（補助金系のみ抽出しレビューキューへ）' });
+  importFromJnet21()
+    .then(r => recordAudit(req, 'create', 'extraction', undefined, `J-Net21取り込み ${r.saved}件`))
     .catch(console.error);
 });
 
